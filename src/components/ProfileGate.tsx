@@ -43,6 +43,23 @@ function Avatar({ profile, className = "" }: { profile: Profile; className?: str
 
 export default function ProfileGate() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  // Profile tapped but picker still animating out
+  const [picking, setPicking] = useState<Profile | null>(null);
+  // Came back via Switch, so the picker shouldn't wait for the splash
+  const [returned, setReturned] = useState(false);
+
+  function choose(p: Profile) {
+    if (picking) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setProfile(p);
+      return;
+    }
+    setPicking(p);
+    setTimeout(() => {
+      setProfile(p);
+      setPicking(null);
+    }, 450);
+  }
 
   if (profile) {
     const today = new Date().toLocaleDateString(undefined, {
@@ -53,14 +70,17 @@ export default function ProfileGate() {
 
     return (
       <section className="flex w-full flex-1 flex-col gap-6 sm:gap-8">
-        <header className="flex flex-col gap-1">
+        <header className="enter flex flex-col gap-1">
           <div className="flex items-center justify-between gap-4">
             <span className="text-xs font-medium tracking-[0.3em] text-foreground/40 uppercase">
               {today}
             </span>
             <button
               type="button"
-              onClick={() => setProfile(null)}
+              onClick={() => {
+                setReturned(true);
+                setProfile(null);
+              }}
               className="flex items-center gap-2 rounded-full border border-foreground/20 py-1 pr-3 pl-1 text-xs font-medium"
             >
               <Avatar profile={profile} className="size-6 rounded-full text-xs" />
@@ -82,7 +102,8 @@ export default function ProfileGate() {
             <button
               key={label}
               type="button"
-              className={`group relative flex flex-col justify-end overflow-hidden ink-fill rounded-3xl p-5 text-left transition-transform duration-200 active:scale-[0.97] ${tile}`}
+              style={{ animationDelay: `${150 + i * 70}ms` }}
+              className={`enter group relative flex flex-col justify-end overflow-hidden ink-fill rounded-3xl p-5 text-left transition-transform duration-200 active:scale-[0.97] ${tile}`}
             >
               <span
                 className="absolute -top-3 -right-3 text-8xl opacity-20 grayscale transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 sm:text-9xl"
@@ -105,15 +126,26 @@ export default function ProfileGate() {
   }
 
   return (
-    <section className="rise m-auto flex w-full flex-col items-center gap-10 text-center sm:gap-14">
+    <section
+      style={returned ? { animationDelay: "0s" } : undefined}
+      className={`rise m-auto flex w-full flex-col items-center gap-10 text-center transition-opacity delay-150 duration-300 sm:gap-14 ${
+        picking ? "opacity-0" : ""
+      }`}
+    >
       <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">Who&apos;s there?</h1>
 
       <ul className="flex flex-wrap justify-center gap-8 sm:gap-12">
         {PROFILES.map((p) => (
-          <li key={p.id}>
+          <li
+            key={p.id}
+            className={`transition-all duration-300 ease-out ${
+              !picking ? "" : picking === p ? "scale-110" : "scale-90 opacity-0"
+            }`}
+          >
             <button
               type="button"
-              onClick={() => setProfile(p)}
+              disabled={!!picking}
+              onClick={() => choose(p)}
               className="group flex flex-col items-center gap-3"
             >
               <Avatar
