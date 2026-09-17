@@ -1,22 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { listAllPhotos } from "@/components/photos";
+import { useState } from "react";
+import { addComment, deleteComment, toggleLike } from "@/app/actions";
 import {
-  addComment,
-  deleteComment,
-  listPosts,
-  readReactions,
-  subscribePosts,
-  toggleLike,
+  commentsFor,
+  likesFor,
+  useFeed,
   type Comment,
-  type Post,
-  type Reactions,
 } from "@/components/posts";
 import { Avatar, PROFILES, type Profile } from "@/components/profiles";
 import { Icon } from "@/components/ui";
-
-type Media = { kind: "image" | "video"; url: string };
 
 const ICONS = {
   back: "M15 18l-6-6 6-6",
@@ -127,39 +120,12 @@ export default function Feed({
   onClose: () => void;
   onWrite: () => void;
 }) {
-  const [posts, setPosts] = useState<Post[] | null>(null);
-  const [media, setMedia] = useState<Record<string, Media>>({});
-  const [reactions, setReactions] = useState<Reactions>({
-    likes: {},
-    comments: {},
-  });
+  const { feed, loading, error, reload } = useFeed();
   const [openComments, setOpenComments] = useState<string | null>(null);
-  const urls = useRef<string[]>([]);
+  const posts = loading ? null : feed.posts;
 
-  // Reload whenever a post lands, here or in another tab
-  useEffect(() => {
-    let alive = true;
-    const cache: Record<string, Media> = {};
-    async function load() {
-      const rows = await listAllPhotos().catch(() => []);
-      if (!alive) return;
-      // Keep URLs for photos already shown, so a like doesn't reload images
-      for (const p of rows)
-        cache[p.id] ??= { kind: p.kind, url: URL.createObjectURL(p.blob) };
-      urls.current = Object.values(cache).map((m) => m.url);
-      setMedia({ ...cache });
-      setPosts(listPosts());
-      setReactions(readReactions());
-    }
-    load();
-    const stop = subscribePosts(load);
-    return () => {
-      alive = false;
-      stop();
-      urls.current.forEach((u) => URL.revokeObjectURL(u));
-      urls.current = [];
-    };
-  }, []);
+  // Run an action, then refresh; realtime also refreshes other devices
+  const run = (fn: () => Promise<unknown>) => fn().then(reload, reload);
 
   return (
     <section
@@ -195,6 +161,11 @@ export default function Feed({
       </header>
 
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-4">
+        {error && (
+          <p className="rounded-2xl border border-[var(--accent)] px-4 py-3 text-sm text-[var(--accent)]">
+            {error}
+          </p>
+        )}
         {posts === null ? null : posts.length === 0 ? (
           <div className="enter m-auto flex flex-col items-center gap-3 py-24 text-center">
             <p className="text-2xl font-semibold tracking-tight">
@@ -207,13 +178,10 @@ export default function Feed({
         ) : (
           posts.map((post, i) => {
             const author = PROFILES.find((p) => p.id === post.profileId);
-            const likes = reactions.likes[post.id] ?? [];
+            const likes = likesFor(feed, post.id).map((l) => l.profileId);
             const liked = likes.includes(profile.id);
-            const comments = reactions.comments[post.id] ?? [];
-            const items = [
-              ...post.mediaIds.map((id) => media[id]).filter(Boolean),
-              ...(post.mediaUrls ?? []),
-            ];
+            const comments = commentsFor(feed, post.id);
+            const items = post.media;
             return (
               <article
                 key={post.id}
@@ -252,7 +220,7 @@ export default function Feed({
                 </header>
                 {post.text && (
                   <p
-                    className={`rounded-2xl whitespace-pre-wrap break-words ${post.paper ? `${post.paper} p-4` : ""} ${
+                    className={`whitespace-pre-wrap break-words ${
                       items.length === 0 && post.text.length < 80
                         ? "text-xl"
                         : "text-base"
@@ -268,17 +236,17 @@ export default function Feed({
                     {items.slice(0, 4).map((m, j) =>
                       m.kind === "video" ? (
                         <video
-                          key={j}
+                          key={m.id}
                           src={m.url}
                           controls
                           playsInline
                           className="aspect-square w-full bg-foreground object-cover"
                         />
                       ) : (
-                        // Blob URLs can't go through next/image
+                        // Signed storage URLs rotate, so they skip next/image
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          key={j}
+                          key={m.id}
                           src={m.url}
                           alt=""
                           className={`w-full object-cover ${items.length === 3 && j === 0 ? "col-span-2 aspect-[2/1]" : "aspect-square"}`}
@@ -290,7 +258,7 @@ export default function Feed({
                 <footer className="flex items-center gap-1 text-sm">
                   <button
                     type="button"
-                    onClick={() => toggleLike(post.id, profile.id)}
+                    onClick={() => run(() => toggleLike(post.id))}
                     aria-pressed={liked}
                     className={`flex h-9 items-center gap-1.5 rounded-full px-3 transition-colors duration-150 active:scale-[0.97] ${
                       liked ? "text-[var(--accent)]" : "hover:bg-foreground/5"
@@ -343,8 +311,8 @@ export default function Feed({
                   <Comments
                     comments={comments}
                     profile={profile}
-                    onAdd={(text) => addComment(post.id, profile.id, text)}
-                    onDelete={(id) => deleteComment(post.id, id)}
+                    onAdd={(text) => run(() => addComment(post.id, text))}
+                    onDelete={(id) => run(() => deleteComment(id))}
                   />
                 )}
               </article>

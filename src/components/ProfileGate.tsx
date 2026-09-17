@@ -4,7 +4,9 @@ import { useState } from "react";
 import DevLog from "@/components/DevLog";
 import Feed from "@/components/Feed";
 import Gallery from "@/components/Gallery";
+import { signOut } from "@/app/actions";
 import Notifications from "@/components/Notifications";
+import PinPad from "@/components/PinPad";
 import PostComposer from "@/components/PostComposer";
 import WeeklyPlanner from "@/components/WeeklyPlanner";
 import { Avatar, PROFILES, type Profile } from "@/components/profiles";
@@ -45,8 +47,13 @@ const ACTIONS = [
   },
 ] as const;
 
-export default function ProfileGate() {
-  const [profile, setProfile] = useState<Profile | null>(null);
+export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
+  // The server already checked the session cookie; start inside that profile
+  const [profile, setProfile] = useState<Profile | null>(
+    () => PROFILES.find((p) => p.id === signedIn) ?? null,
+  );
+  // Profile tapped on the picker, waiting for its PIN
+  const [asking, setAsking] = useState<Profile | null>(null);
   // Profile tapped, showing its loading screen
   const [picking, setPicking] = useState<Profile | null>(null);
   // Came back via Switch, so the picker shouldn't wait for the splash
@@ -56,7 +63,9 @@ export default function ProfileGate() {
     "menu" | "post" | "feed" | "todo" | "planner" | "gallery"
   >("menu");
 
-  function choose(p: Profile) {
+  // Called after the server accepted the PIN and set the session cookie
+  function open(p: Profile) {
+    setAsking(null);
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setProfile(p);
       return;
@@ -67,6 +76,16 @@ export default function ProfileGate() {
       setProfile(p);
       setPicking(null);
     }, 1500);
+  }
+
+  if (asking) {
+    return (
+      <PinPad
+        profile={asking}
+        onBack={() => setAsking(null)}
+        onSuccess={() => open(asking)}
+      />
+    );
   }
 
   if (picking) {
@@ -135,7 +154,9 @@ export default function ProfileGate() {
               />
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
+                  // Switching signs this device out, so the next person needs their PIN
+                  await signOut().catch(() => {});
                   setReturned(true);
                   setView("menu");
                   setProfile(null);
@@ -239,7 +260,7 @@ export default function ProfileGate() {
           <li key={p.id}>
             <button
               type="button"
-              onClick={() => choose(p)}
+              onClick={() => setAsking(p)}
               className="group flex flex-col items-center gap-3 transition-transform duration-200 active:scale-[0.97]"
             >
               <Avatar

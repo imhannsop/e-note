@@ -131,10 +131,15 @@ body {
   background-size: 6px 6px;
 }
 .ink-lines {
-  background-image: repeating-linear-gradient(-45deg, var(--ink) 0 1px, transparent 1px 7px);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--ink) 0 1px,
+    transparent 1px 7px
+  );
 }
 .ink-grid {
-  background-image: linear-gradient(var(--ink) 1px, transparent 1px),
+  background-image:
+    linear-gradient(var(--ink) 1px, transparent 1px),
     linear-gradient(90deg, var(--ink) 1px, transparent 1px);
   background-size: 14px 14px;
 }
@@ -214,6 +219,28 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .drop-in {
+    animation: none;
+  }
+}
+
+/* Wrong PIN: a short side-to-side shake */
+.pin-shake {
+  animation: pin-shake 0.36s ease-in-out;
+}
+
+@keyframes pin-shake {
+  20%,
+  60% {
+    translate: -8px 0;
+  }
+  40%,
+  80% {
+    translate: 8px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-shake {
     animation: none;
   }
 }

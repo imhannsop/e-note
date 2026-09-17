@@ -2,12 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  listPosts,
-  readReactions,
-  subscribePosts,
-  type Post,
-} from "@/components/posts";
+import { getNotifSeen, markNotifsSeen } from "@/app/actions";
+import { useFeed, type Feed, type Post } from "@/components/posts";
 import { Avatar, PROFILES, type Profile } from "@/components/profiles";
 import { Icon } from "@/components/ui";
 
@@ -33,48 +29,44 @@ const VERB = {
   post: "shared a new post",
 };
 
-const seenKey = (id: string) => `ink:notif-seen:${id}`;
+const time = (iso: string) => new Date(iso).getTime();
 
-// Everything the other profiles did that involves this one, newest first.
-// When a database arrives, this becomes a single query.
-function buildNotices(me: Profile): Notice[] {
-  const posts = listPosts();
-  const r = readReactions();
+// Everything the other profiles did that involves this one, newest first
+function buildNotices(me: Profile, feed: Feed): Notice[] {
   const who = (id: string) => PROFILES.find((p) => p.id === id);
+  const byId = new Map(feed.posts.map((p) => [p.id, p]));
   const out: Notice[] = [];
-  for (const post of posts) {
-    if (post.profileId === me.id) {
-      for (const id of r.likes[post.id] ?? []) {
-        const from = who(id);
-        // Likes from before timestamps were kept fall back to the post's time
-        if (from && id !== me.id)
-          out.push({
-            id: `l-${post.id}-${id}`,
-            kind: "like",
-            from,
-            post,
-            at: r.likedAt?.[post.id]?.[id] ?? post.at,
-          });
-      }
-      for (const c of r.comments[post.id] ?? []) {
-        const from = who(c.profileId);
-        if (from && c.profileId !== me.id)
-          out.push({
-            id: `c-${c.id}`,
-            kind: "comment",
-            from,
-            post,
-            text: c.text,
-            at: c.at,
-          });
-      }
-    } else {
-      const from = who(post.profileId);
-      if (from)
-        out.push({ id: `p-${post.id}`, kind: "post", from, post, at: post.at });
-    }
+  for (const post of feed.posts) {
+    const from = who(post.profileId);
+    if (post.profileId !== me.id && from)
+      out.push({ id: `p-${post.id}`, kind: "post", from, post, at: post.at });
   }
-  return out.sort((a, b) => b.at.localeCompare(a.at));
+  for (const l of feed.likes) {
+    const post = byId.get(l.postId);
+    const from = who(l.profileId);
+    if (post?.profileId === me.id && from && l.profileId !== me.id)
+      out.push({
+        id: `l-${l.postId}-${l.profileId}`,
+        kind: "like",
+        from,
+        post,
+        at: l.at,
+      });
+  }
+  for (const c of feed.comments) {
+    const post = byId.get(c.postId);
+    const from = who(c.profileId);
+    if (post?.profileId === me.id && from && c.profileId !== me.id)
+      out.push({
+        id: `c-${c.id}`,
+        kind: "comment",
+        from,
+        post,
+        text: c.text,
+        at: c.at,
+      });
+  }
+  return out.sort((a, b) => time(b.at) - time(a.at));
 }
 
 const fmtAgo = (iso: string) => {
@@ -96,25 +88,24 @@ export default function Notifications({
   profile: Profile;
   onOpenFeed: () => void;
 }) {
-  const [notices, setNotices] = useState<Notice[]>([]);
-  const [seen, setSeen] = useState("");
+  const { feed } = useFeed();
+  const notices = buildNotices(profile, feed);
+  // Read state lives in the database so it follows you across devices
+  const [seen, setSeen] = useState(0);
+  const pendingSeen = useRef(0);
   const [open, setOpen] = useState(false);
   // Where the dropdown sits: just under the bell, pointer aimed at its center
   const [anchor, setAnchor] = useState({ top: 0, caret: 0 });
   const bell = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const load = () => {
-      setNotices(buildNotices(profile));
-      try {
-        setSeen(localStorage.getItem(seenKey(profile.id)) ?? "");
-      } catch {}
-    };
-    load();
-    return subscribePosts(load);
-  }, [profile]);
+    getNotifSeen().then(
+      (iso) => setSeen(time(iso)),
+      () => {},
+    );
+  }, [profile.id]);
 
-  const unread = notices.filter((n) => n.at > seen).length;
+  const unread = notices.filter((n) => time(n.at) > seen).length;
 
   function place() {
     const r = bell.current?.getBoundingClientRect();
@@ -130,16 +121,15 @@ export default function Notifications({
     place();
     setOpen(true);
     // Mark read on open; the list keeps its highlight until closed
-    try {
-      localStorage.setItem(seenKey(profile.id), new Date().toISOString());
-    } catch {}
+    markNotifsSeen().then(
+      (iso) => (pendingSeen.current = time(iso)),
+      () => {},
+    );
   }
 
   function close() {
     setOpen(false);
-    try {
-      setSeen(localStorage.getItem(seenKey(profile.id)) ?? "");
-    } catch {}
+    if (pendingSeen.current) setSeen(pendingSeen.current);
   }
 
   useEffect(() => {
@@ -230,7 +220,7 @@ export default function Notifications({
                   </li>
                 )}
                 {notices.map((n, i) => {
-                  const fresh = n.at > seen;
+                  const fresh = time(n.at) > seen;
                   return (
                     <li
                       key={n.id}

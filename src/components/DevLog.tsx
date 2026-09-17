@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Avatar, type Profile } from "@/components/profiles";
 import { Icon, useKeyboardInset } from "@/components/ui";
+import { useDoc } from "@/components/useDoc";
 
 // Tasks toggle between open and done; notes and ideas stay as-is.
 type Kind = "task" | "note" | "idea";
@@ -92,17 +93,11 @@ function localDate(d = new Date()) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
 }
 
-function load(key: string): Entry[] {
-  try {
-    const entries: Entry[] = JSON.parse(localStorage.getItem(key) ?? "[]");
-    // Older logs used a "moved" state; those tasks were handled, so read them as done
-    return entries.map((e) =>
-      (e.state as string) === "moved" ? { ...e, state: "done" } : e,
-    );
-  } catch {
-    return [];
-  }
-}
+// Older logs used a "moved" state; those tasks were handled, so read them as done
+const upgrade = (entries: Entry[]) =>
+  entries.map((e) =>
+    (e.state as string) === "moved" ? { ...e, state: "done" as const } : e,
+  );
 
 export default function DevLog({
   profile,
@@ -111,8 +106,12 @@ export default function DevLog({
   profile: Profile;
   onClose: () => void;
 }) {
-  const storageKey = `ink:devlog:${profile.id}`;
-  const [entries, setEntries] = useState<Entry[]>(() => load(storageKey));
+  const [entries, setEntries, sync] = useDoc<Entry[]>(
+    "devlog",
+    `ink:devlog:${profile.id}`,
+    [],
+    upgrade,
+  );
   const [kind, setKind] = useState<Kind>("task");
   const [draft, setDraft] = useState("");
   const keyboard = useKeyboardInset();
@@ -123,12 +122,6 @@ export default function DevLog({
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [selected, setSelected] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(entries));
-    } catch {}
-  }, [storageKey, entries]);
 
   // Keep the newest entry in view as the list grows.
   useEffect(() => {
@@ -366,6 +359,15 @@ export default function DevLog({
           )}
         </div>
       </header>
+
+      {sync.error && (
+        <p
+          role="alert"
+          className="mx-4 mt-2 rounded-2xl border border-[var(--accent)] px-3 py-2 text-xs text-[var(--accent)]"
+        >
+          Not synced: {sync.error}
+        </p>
+      )}
 
       {/* Current profile */}
       <div

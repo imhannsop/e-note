@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { deletePhoto, listPhotos, tagsOf } from "@/components/photos";
+import { useEffect, useMemo, useState } from "react";
+import { deletePost, getProfileMeta, saveProfileMeta } from "@/app/actions";
 import {
-  deletePost,
-  listPosts,
-  readReactions,
-  subscribePosts,
+  commentsFor,
+  likesFor,
+  tagsOf,
+  useFeed,
   type Post,
-  type Reactions,
 } from "@/components/posts";
 import { Avatar, PROFILES, type Profile } from "@/components/profiles";
 import { InkStroke } from "@/components/Splash";
@@ -25,14 +24,6 @@ const ICONS = {
 
 type Meta = { name: string; bio: string };
 type Media = { kind: "image" | "video"; url: string };
-
-function loadMeta(key: string, fallback: Meta): Meta {
-  try {
-    return { ...fallback, ...JSON.parse(localStorage.getItem(key) ?? "{}") };
-  } catch {
-    return fallback;
-  }
-}
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, {
@@ -64,7 +55,7 @@ function MediaThumb({ m, className }: { m: Media; className: string }) {
       className={className}
     />
   ) : (
-    // eslint-disable-next-line @next/next/no-img-element -- blob or sample URL
+    // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
     <img src={m.url} alt="" loading="lazy" className={className} />
   );
 }
@@ -76,65 +67,24 @@ export default function Gallery({
   profile: Profile;
   onClose: () => void;
 }) {
-  const metaKey = `ink:profile:${profile.id}`;
-  const [meta, setMeta] = useState<Meta>(() =>
-    loadMeta(metaKey, { name: profile.name, bio: "" }),
-  );
+  const [meta, setMeta] = useState<Meta>({ name: profile.name, bio: "" });
   const [editing, setEditing] = useState(false);
-  const [posts, setPosts] = useState<Post[] | null>(null);
-  const [reactions, setReactions] = useState<Reactions>({
-    likes: {},
-    comments: {},
-  });
-  const [blobs, setBlobs] = useState<Record<string, Media>>({});
+  const { feed, loading, reload } = useFeed();
+  const posts = loading
+    ? null
+    : feed.posts.filter((p) => p.profileId === profile.id);
   const [tag, setTag] = useState<string | null>(null);
   const [newest, setNewest] = useState(true);
   const [limit, setLimit] = useState(PAGE);
   const [open, setOpen] = useState<string | null>(null);
-  const urls = useRef<string[]>([]);
 
-  // Posts and their likes/comments, kept live with the feed
   useEffect(() => {
-    const load = () => {
-      setPosts(listPosts().filter((p) => p.profileId === profile.id));
-      setReactions(readReactions());
-    };
-    load();
-    return subscribePosts(load);
+    getProfileMeta(profile.id).then(setMeta, () => {});
   }, [profile.id]);
 
-  // Uploaded media; blob URLs are freed when the profile closes
-  useEffect(() => {
-    let alive = true;
-    listPhotos(profile.id)
-      .catch(() => [])
-      .then((rows) => {
-        if (!alive) return;
-        const next: Record<string, Media> = {};
-        for (const p of rows)
-          next[p.id] = { kind: p.kind, url: URL.createObjectURL(p.blob) };
-        urls.current = Object.values(next).map((m) => m.url);
-        setBlobs(next);
-      });
-    return () => {
-      alive = false;
-      urls.current.forEach((u) => URL.revokeObjectURL(u));
-      urls.current = [];
-    };
-  }, [profile.id]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(metaKey, JSON.stringify(meta));
-    } catch {}
-  }, [metaKey, meta]);
-
-  const mediaOf = (p: Post): Media[] => [
-    ...p.mediaIds.map((id) => blobs[id]).filter(Boolean),
-    ...(p.mediaUrls ?? []),
-  ];
-  const likesOf = (id: string) => reactions.likes[id] ?? [];
-  const commentsOf = (id: string) => reactions.comments[id] ?? [];
+  const mediaOf = (p: Post): Media[] => p.media;
+  const likesOf = (id: string) => likesFor(feed, id).map((l) => l.profileId);
+  const commentsOf = (id: string) => commentsFor(feed, id);
 
   const tags = useMemo(
     () => [...new Set((posts ?? []).flatMap(tagsOfPost))].sort(),
@@ -172,11 +122,9 @@ export default function Gallery({
     });
 
   async function remove(post: Post) {
-    await Promise.all(
-      post.mediaIds.map((id) => deletePhoto(id).catch(() => {})),
-    );
-    deletePost(post.id);
+    await deletePost(post.id).catch(() => {});
     setOpen(null);
+    reload();
   }
 
   return (
@@ -217,6 +165,7 @@ export default function Gallery({
               onSubmit={(e) => {
                 e.preventDefault();
                 setEditing(false);
+                saveProfileMeta(meta).catch(() => {});
               }}
             >
               <input
@@ -484,7 +433,7 @@ export default function Gallery({
               <Icon d={ICONS.close} />
             </button>
             <span className="font-bold tracking-tight">Entry</span>
-            {shown.id.startsWith("sample-") ? (
+            {shown.profileId !== profile.id ? (
               <span className="size-10" aria-hidden />
             ) : (
               <button
@@ -566,7 +515,7 @@ export default function Gallery({
                         className="w-full rounded-xl"
                       />
                     ) : (
-                      // eslint-disable-next-line @next/next/no-img-element -- blob or sample URL
+                      // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
                       <img
                         src={m.url}
                         alt=""

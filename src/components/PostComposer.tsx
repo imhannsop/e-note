@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Avatar, type Profile } from "@/components/profiles";
-import { savePhotos } from "@/components/photos";
-import { savePost } from "@/components/posts";
+import { publishPost } from "@/components/posts";
 import { InkStroke } from "@/components/Splash";
 import { Icon, RULED, Step, useKeyboardInset } from "@/components/ui";
 
@@ -49,6 +48,8 @@ export default function PostComposer({
   const [media, setMedia] = useState<Media[]>([]);
   const [dragging, setDragging] = useState(false);
   const [posted, setPosted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const keyboard = useKeyboardInset();
 
@@ -115,28 +116,20 @@ export default function PostComposer({
   }
 
   async function post() {
-    if (!canPost) return;
-    // Media goes to the gallery; the entry goes to the feed
-    const at = new Date().toISOString();
-    await savePhotos(
-      media.map((m) => ({
-        id: m.id,
-        profileId: profile.id,
-        blob: m.file,
-        kind: m.kind,
-        caption: text.trim(),
-        at,
-      })),
-    ).catch(() => {});
-    savePost({
-      id: crypto.randomUUID(),
-      profileId: profile.id,
-      text: text.trim(),
-      paper: "",
-      tags,
-      mediaIds: media.map((m) => m.id),
-      at,
-    });
+    if (!canPost || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      await publishPost(
+        text.trim(),
+        tags,
+        media.map((m) => ({ file: m.file, kind: m.kind })),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not post. Try again.");
+      setSending(false);
+      return;
+    }
     try {
       localStorage.removeItem(draftKey);
     } catch {}
@@ -189,16 +182,25 @@ export default function PostComposer({
         <button
           type="button"
           onClick={post}
-          disabled={!canPost}
+          disabled={!canPost || sending}
           className={`h-9 rounded-full px-5 text-sm font-semibold transition-all duration-200 active:scale-[0.97] ${
-            canPost
+            canPost && !sending
               ? "bg-[var(--accent)] text-white"
               : "border-[1.5px] border-[var(--gray)] text-[var(--gray)]"
           }`}
         >
-          Post
+          {sending ? "Posting…" : "Post"}
         </button>
       </header>
+
+      {error && (
+        <p
+          role="alert"
+          className="mx-4 mt-3 rounded-2xl border-[1.5px] border-[var(--accent)] px-4 py-2 text-sm text-[var(--accent)]"
+        >
+          {error}
+        </p>
+      )}
 
       {/* Composition */}
       <div
