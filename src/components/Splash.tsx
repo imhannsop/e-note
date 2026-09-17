@@ -2,6 +2,27 @@
 
 import { useEffect, useState } from "react";
 
+export function InkStroke({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 120 40"
+      className={`text-foreground ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path
+        pathLength={1}
+        className="ink-stroke"
+        d="M6 28c8-14 14-20 18-18s-6 18-2 18 10-16 14-16-2 16 2 16 8-12 12-14 4 12 8 12 10-18 16-18-6 18 0 18 12-10 18-12 8 8 14 6"
+      />
+      <circle cx="112" cy="26" r="2.5" fill="currentColor" stroke="none" className="ink-drop" />
+    </svg>
+  );
+}
+
 export default function Splash() {
   const [phase, setPhase] = useState<"visible" | "fading" | "gone">("visible");
 
@@ -32,25 +53,7 @@ export default function Splash() {
         phase === "fading" ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
-      <svg
-        viewBox="0 0 120 40"
-        className="w-40 text-foreground sm:w-52"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        aria-hidden
-      >
-        <path
-          pathLength={1}
-          className="ink-stroke"
-          d="M6 28c8-14 14-20 18-18s-6 18-2 18 10-16 14-16-2 16 2 16 8-12 12-14 4 12 8 12 10-18 16-18-6 18 0 18 12-10 18-12 8 8 14 6"
-        />
-        <circle cx="112" cy="26" r="2.5" fill="currentColor" stroke="none" className="ink-drop" />
-      </svg>
-      <span className="text-xs font-medium tracking-[0.3em] text-foreground/50 uppercase">
-        e-note
-      </span>
+      <InkStroke className="w-40 sm:w-52" />
     </div>
   );
 }

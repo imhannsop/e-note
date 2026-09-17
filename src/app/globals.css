@@ -142,3 +142,57 @@ body {
   background: var(--foreground);
   color: var(--background);
 }
+
+/* Dev log, planner, gallery: app ink + paper, gray for metadata, one precious accent */
+.devlog,
+.planner,
+.gallery {
+  --ink: var(--foreground);
+  --paper: var(--background);
+  --gray: color-mix(in srgb, var(--foreground) 50%, transparent);
+  --accent: #c8321f;
+  background: var(--paper);
+  color: var(--ink);
+}
+@media (prefers-color-scheme: dark) {
+  .devlog,
+  .planner,
+  .gallery {
+    --accent: #f06a55;
+  }
+}
+
+/* Planner check: a quick ink-down when a cell is completed */
+.check-pop {
+  animation: check-pop 0.28s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+@keyframes check-pop {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .check-pop {
+    animation: none;
+  }
+}
+
+/* Viewer: plain fade, no bounce */
+.fade-in {
+  animation: fade-in 0.18s ease-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in {
+    animation: none;
+  }
+}

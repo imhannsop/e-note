@@ -1,64 +1,73 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
-
-// Drop photos at public/profiles/<id>.jpg; the initial shows until then
-const PROFILES = [
-  { id: "sop", name: "sop" },
-  { id: "ling", name: "ling" },
-];
-
-type Profile = (typeof PROFILES)[number];
+import DevLog from "@/components/DevLog";
+import Gallery from "@/components/Gallery";
+import PostComposer from "@/components/PostComposer";
+import WeeklyPlanner from "@/components/WeeklyPlanner";
+import { Avatar, PROFILES, type Profile } from "@/components/profiles";
+import { InkStroke } from "@/components/Splash";
 
 // Main tile layout for the home screen
 const ACTIONS = [
-  { icon: "✍️", label: "Write a post", hint: "Share what's on your mind", tile: "col-span-2 ink-solid" },
-  { icon: "✅", label: "To-do list", hint: "Plan your day", tile: "ink-dots" },
-  { icon: "🗓️", label: "Weekly Planner", hint: "Plan your week", tile: "ink-lines" },
-  { icon: "🖼️", label: "View Gallery", hint: "Browse your posts", tile: "col-span-2 ink-grid" },
-];
-
-function Avatar({ profile, className = "" }: { profile: Profile; className?: string }) {
-  const [broken, setBroken] = useState(false);
-
-  return (
-    <span
-      className={`relative grid shrink-0 place-items-center overflow-hidden bg-foreground font-semibold text-background uppercase ${className}`}
-    >
-      {profile.name[0]}
-      {!broken && (
-        <Image
-          src={`/profiles/${profile.id}.jpg`}
-          alt=""
-          fill
-          sizes="160px"
-          className="object-cover grayscale"
-          onError={() => setBroken(true)}
-        />
-      )}
-    </span>
-  );
-}
+  { id: "post", icon: "✍️", label: "Write a post", hint: "Share what's on your mind", tile: "col-span-2 ink-solid" },
+  { id: "todo", icon: "✅", label: "Dev log", hint: "Log your day", tile: "ink-dots" },
+  { id: "planner", icon: "🗓️", label: "Weekly Planner", hint: "Plan your week", tile: "ink-lines" },
+  { id: "gallery", icon: "🖼️", label: "View Gallery", hint: "Browse your posts", tile: "col-span-2 ink-grid" },
+] as const;
 
 export default function ProfileGate() {
   const [profile, setProfile] = useState<Profile | null>(null);
-  // Profile tapped but picker still animating out
+  // Profile tapped, showing its loading screen
   const [picking, setPicking] = useState<Profile | null>(null);
   // Came back via Switch, so the picker shouldn't wait for the splash
   const [returned, setReturned] = useState(false);
+  // Which screen of the profile's space is open
+  const [view, setView] = useState<"menu" | "post" | "todo" | "planner" | "gallery">("menu");
 
   function choose(p: Profile) {
-    if (picking) return;
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setProfile(p);
       return;
     }
     setPicking(p);
+    // Long enough for the ink stroke to finish writing
     setTimeout(() => {
       setProfile(p);
       setPicking(null);
-    }, 450);
+    }, 1500);
+  }
+
+  if (picking) {
+    return (
+      <section
+        role="status"
+        aria-label={`Opening ${picking.name}`}
+        className="enter m-auto flex flex-col items-center gap-6"
+      >
+        <Avatar profile={picking} className="size-24 rounded-3xl text-4xl sm:size-28 sm:text-5xl" />
+        <InkStroke className="w-32 sm:w-40" />
+        <span className="text-xs font-medium tracking-[0.3em] text-foreground/50 uppercase">
+          Opening {picking.name}&apos;s notebook
+        </span>
+      </section>
+    );
+  }
+
+  if (profile && view === "post") {
+    return <PostComposer profile={profile} onClose={() => setView("menu")} />;
+  }
+
+  if (profile && view === "gallery") {
+    return <Gallery profile={profile} onClose={() => setView("menu")} />;
+  }
+
+  if (profile && view === "planner") {
+    return <WeeklyPlanner profile={profile} onClose={() => setView("menu")} />;
+  }
+
+  if (profile && view === "todo") {
+    return <DevLog profile={profile} onClose={() => setView("menu")} />;
   }
 
   if (profile) {
@@ -79,6 +88,7 @@ export default function ProfileGate() {
               type="button"
               onClick={() => {
                 setReturned(true);
+                setView("menu");
                 setProfile(null);
               }}
               className="flex items-center gap-2 rounded-full border border-foreground/20 py-1 pr-3 pl-1 text-xs font-medium"
@@ -98,10 +108,11 @@ export default function ProfileGate() {
         </header>
 
         <div className="grid min-h-96 flex-1 grid-cols-2 grid-rows-[1.6fr_1fr_0.8fr] gap-3">
-          {ACTIONS.map(({ icon, label, hint, tile }, i) => (
+          {ACTIONS.map(({ id, icon, label, hint, tile }, i) => (
             <button
-              key={label}
+              key={id}
               type="button"
+              onClick={() => setView(id)}
               style={{ animationDelay: `${150 + i * 70}ms` }}
               className={`enter group relative flex flex-col justify-end overflow-hidden ink-fill rounded-3xl p-5 text-left transition-transform duration-200 active:scale-[0.97] ${tile}`}
             >
@@ -128,29 +139,21 @@ export default function ProfileGate() {
   return (
     <section
       style={returned ? { animationDelay: "0s" } : undefined}
-      className={`rise m-auto flex w-full flex-col items-center gap-10 text-center transition-opacity delay-150 duration-300 sm:gap-14 ${
-        picking ? "opacity-0" : ""
-      }`}
+      className="rise m-auto flex w-full flex-col items-center gap-10 text-center sm:gap-14"
     >
       <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">Who&apos;s there?</h1>
 
       <ul className="flex flex-wrap justify-center gap-8 sm:gap-12">
         {PROFILES.map((p) => (
-          <li
-            key={p.id}
-            className={`transition-all duration-300 ease-out ${
-              !picking ? "" : picking === p ? "scale-110" : "scale-90 opacity-0"
-            }`}
-          >
+          <li key={p.id}>
             <button
               type="button"
-              disabled={!!picking}
               onClick={() => choose(p)}
-              className="group flex flex-col items-center gap-3"
+              className="group flex flex-col items-center gap-3 transition-transform duration-200 active:scale-[0.97]"
             >
               <Avatar
                 profile={p}
-                className="size-28 rounded-3xl text-5xl ring-foreground ring-offset-4 ring-offset-background transition-all duration-200 group-hover:ring-2 group-focus-visible:ring-2 group-active:scale-95 sm:size-40 sm:text-6xl"
+                className="size-28 rounded-3xl text-5xl ring-foreground ring-offset-4 ring-offset-background transition-all duration-200 group-hover:ring-2 group-focus-visible:ring-2 sm:size-40 sm:text-6xl"
               />
               <span className="text-lg text-foreground/60 transition-colors group-hover:text-foreground sm:text-xl">
                 {p.name}
