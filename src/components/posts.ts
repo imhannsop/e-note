@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { createPost, createUploadSlots, getFeed } from "@/app/actions";
 import { browserDb, subscribeChanges } from "@/lib/browser";
 import type { Feed, FeedPost, MediaKind } from "@/lib/types";
@@ -15,38 +15,81 @@ export const tagsOf = (caption: string) =>
 
 const EMPTY: Feed = { posts: [], likes: [], comments: [] };
 
-// Shared feed state: loads through the server, refetches on realtime pings.
+// Shared feed state: one cached copy for every screen, refetched on realtime pings.
 // Signed media URLs change on every fetch, so known ones are kept to avoid image reloads.
-export function useFeed() {
-  const [feed, setFeed] = useState<Feed | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const urls = useRef(new Map<string, { url: string; at: number }>());
+let cached: Feed | null = null;
+let lastError: string | null = null;
+let inflight: Promise<void> | null = null;
+let again = false;
+let unsubscribe: (() => void) | null = null;
+let pingTimer: ReturnType<typeof setTimeout> | undefined;
+const listeners = new Set<() => void>();
+const urls = new Map<string, { url: string; at: number }>();
+const notify = () => listeners.forEach((l) => l());
 
-  const load = useCallback(async () => {
+function load(): Promise<void> {
+  // Coalesce overlapping requests; run once more if asked mid-flight
+  if (inflight) {
+    again = true;
+    return inflight;
+  }
+  inflight = (async () => {
     try {
       const next = await getFeed();
       const now = Date.now();
       for (const p of next.posts)
         for (const m of p.media) {
-          const known = urls.current.get(m.id);
+          const known = urls.get(m.id);
           // Reuse for 50 min; the server signs links for 60
           if (known && now - known.at < 50 * 60_000) m.url = known.url;
-          else urls.current.set(m.id, { url: m.url, at: now });
+          else urls.set(m.id, { url: m.url, at: now });
         }
-      setFeed(next);
-      setError(null);
+      cached = next;
+      lastError = null;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load");
+      lastError = e instanceof Error ? e.message : "Could not load";
+    } finally {
+      inflight = null;
+      notify();
+      if (again) {
+        again = false;
+        load();
+      }
     }
-  }, []);
+  })();
+  return inflight;
+}
 
-  useEffect(() => {
-    // Initial fetch from an effect is intentional: data lives behind server actions
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  if (!unsubscribe) {
     load();
-    return subscribeChanges(load);
-  }, [load]);
+    // Bursts of pings (e.g. several likes) collapse into one refetch
+    unsubscribe = subscribeChanges(() => {
+      clearTimeout(pingTimer);
+      pingTimer = setTimeout(load, 250);
+    });
+  }
+  return () => {
+    listeners.delete(listener);
+    if (!listeners.size && unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+    }
+  };
+}
 
+export function useFeed() {
+  const feed = useSyncExternalStore(
+    subscribe,
+    () => cached,
+    () => null,
+  );
+  const error = useSyncExternalStore(
+    subscribe,
+    () => lastError,
+    () => null,
+  );
   return { feed: feed ?? EMPTY, loading: feed === null, error, reload: load };
 }
 

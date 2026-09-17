@@ -8,7 +8,13 @@ import {
   requireProfile,
 } from "@/lib/server/session";
 import { PROFILE_IDS, type ProfileId } from "@/lib/profiles";
-import type { Feed, MediaKind, ProfileMeta, UploadSlot } from "@/lib/types";
+import type {
+  Feed,
+  FeedMedia,
+  MediaKind,
+  ProfileMeta,
+  UploadSlot,
+} from "@/lib/types";
 
 // Server actions only.
 
@@ -167,7 +173,9 @@ export async function getFeed(): Promise<Feed> {
   ]);
   if (posts.error) fail(posts.error.message);
 
-  const rows = media.data ?? [];
+  const postRows = posts.data ?? [];
+  const ids = new Set(postRows.map((p) => p.id));
+  const rows = (media.data ?? []).filter((m) => ids.has(m.post_id));
   const signed = rows.length
     ? ((
         await db.storage.from(BUCKET).createSignedUrls(
@@ -177,21 +185,23 @@ export async function getFeed(): Promise<Feed> {
       ).data ?? [])
     : [];
   const urlOf = new Map(signed.map((s) => [s.path, s.signedUrl]));
+  const mediaOf = new Map<string, FeedMedia[]>();
+  for (const m of rows) {
+    const url = urlOf.get(m.path);
+    if (!url) continue;
+    const list = mediaOf.get(m.post_id) ?? [];
+    list.push({ id: m.id, kind: m.kind as MediaKind, url });
+    mediaOf.set(m.post_id, list);
+  }
 
   return {
-    posts: (posts.data ?? []).map((p) => ({
+    posts: postRows.map((p) => ({
       id: p.id,
       profileId: p.profile_id,
       text: p.body,
       tags: p.tags ?? [],
       at: p.created_at,
-      media: rows
-        .filter((m) => m.post_id === p.id && urlOf.get(m.path))
-        .map((m) => ({
-          id: m.id,
-          kind: m.kind as MediaKind,
-          url: urlOf.get(m.path)!,
-        })),
+      media: mediaOf.get(p.id) ?? [],
     })),
     likes: (likes.data ?? []).map((l) => ({
       postId: l.post_id,
