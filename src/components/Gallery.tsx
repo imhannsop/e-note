@@ -298,6 +298,20 @@ export default function Gallery({
         className="enter mt-3 flex-1 px-4"
         style={{ animationDelay: "180ms" }}
       >
+        {posts === null && (
+          <ul
+            role="status"
+            aria-label="Loading posts"
+            className="grid grid-cols-3 gap-3"
+          >
+            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+              <li
+                key={i}
+                className={`skeleton aspect-square rounded-3xl ${i === 0 ? "col-span-2 row-span-2" : ""}`}
+              />
+            ))}
+          </ul>
+        )}
         {posts !== null && (
           <ul className="grid grid-flow-dense grid-cols-3 gap-3">
             {page.map((p, i) => {

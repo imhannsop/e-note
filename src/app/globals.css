@@ -113,6 +113,24 @@ body {
   }
 }
 
+/* Loading placeholder */
+.skeleton {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  animation: skeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes skeleton {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .paper,
   .rise,

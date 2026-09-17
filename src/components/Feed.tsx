@@ -166,7 +166,27 @@ export default function Feed({
             {error}
           </p>
         )}
-        {posts === null ? null : posts.length === 0 ? (
+        {posts === null ? (
+          <div
+            role="status"
+            aria-label="Loading posts"
+            className="flex flex-col gap-4"
+          >
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex flex-col gap-3 rounded-3xl border border-foreground/15 p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="skeleton size-9 rounded-full" />
+                  <div className="skeleton h-3 w-24 rounded-full" />
+                </div>
+                <div className="skeleton aspect-[4/3] rounded-2xl" />
+                <div className="skeleton h-3 w-3/4 rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : posts.length === 0 ? (
           <div className="enter m-auto flex flex-col items-center gap-3 py-24 text-center">
             <p className="text-2xl font-semibold tracking-tight">
               No posts yet

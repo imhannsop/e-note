@@ -360,6 +360,14 @@ export default function DevLog({
         </div>
       </header>
 
+      {!sync.ready && !sync.error && (
+        <p
+          role="status"
+          className="skeleton mx-auto mt-2 w-fit rounded-full px-4 py-1.5 text-xs font-medium"
+        >
+          Loading…
+        </p>
+      )}
       {sync.error && (
         <p
           role="alert"
