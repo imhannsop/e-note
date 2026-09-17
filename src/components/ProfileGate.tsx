@@ -62,23 +62,6 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
   const [view, setView] = useState<
     "menu" | "post" | "feed" | "todo" | "planner" | "gallery"
   >("menu");
-  // Tile that was just tapped, showing a brief loading state
-  const [going, setGoing] = useState<string | null>(null);
-
-  type View = typeof view;
-  // Short beat so the tap reads as a transition, not a jump
-  function go(next: View) {
-    if (going) return;
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setView(next);
-      return;
-    }
-    setGoing(next);
-    setTimeout(() => {
-      setView(next);
-      setGoing(null);
-    }, 220);
-  }
 
   // Called after the server accepted the PIN and set the session cookie
   function open(p: Profile) {
@@ -207,9 +190,8 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
             >
               <button
                 type="button"
-                onClick={() => go(id)}
-                aria-busy={going === id}
-                className={`group relative flex size-full flex-col justify-between overflow-hidden ink-fill rounded-3xl p-4 text-left transition-all duration-200 active:scale-[0.97] sm:p-5 ${tile} ${going === id ? "scale-[0.97]" : ""} ${going && going !== id ? "opacity-50" : ""}`}
+                onClick={() => setView(id)}
+                className={`group relative flex size-full flex-col justify-between overflow-hidden ink-fill rounded-3xl p-4 text-left transition-transform duration-200 active:scale-[0.97] sm:p-5 ${tile}`}
               >
                 {/* Texture fades out behind the label so the text stays clean */}
                 {id !== "post" && (
@@ -225,23 +207,14 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
                   <span
                     className={`relative grid size-11 place-items-center rounded-full border-[1.5px] border-current transition-transform duration-300 group-hover:-rotate-12 ${id === "post" ? "" : "bg-background"}`}
                   >
-                    {going === id ? (
-                      <span
-                        className="size-5 animate-spin rounded-full border-2 border-current border-t-transparent"
-                        aria-hidden
-                      />
-                    ) : (
-                      <Icon
-                        d={icon}
-                        className="size-5 transition-all duration-300 group-hover:scale-50 group-hover:opacity-0"
-                      />
-                    )}
-                    {going !== id && (
-                      <Icon
-                        d={ARROW}
-                        className="absolute size-5 scale-50 opacity-0 transition-all duration-300 group-hover:scale-100 group-hover:rotate-12 group-hover:opacity-100"
-                      />
-                    )}
+                    <Icon
+                      d={icon}
+                      className="size-5 transition-all duration-300 group-hover:scale-50 group-hover:opacity-0"
+                    />
+                    <Icon
+                      d={ARROW}
+                      className="absolute size-5 scale-50 opacity-0 transition-all duration-300 group-hover:scale-100 group-hover:rotate-12 group-hover:opacity-100"
+                    />
                   </span>
                 </span>
                 <span className="relative flex flex-col">
@@ -260,11 +233,10 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
               {id === "post" && (
                 <button
                   type="button"
-                  onClick={() => go("feed")}
-                  aria-busy={going === "feed"}
+                  onClick={() => setView("feed")}
                   className="absolute right-4 bottom-4 rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-transform duration-200 active:scale-[0.97] sm:right-5 sm:bottom-5"
                 >
-                  {going === "feed" ? "Opening…" : "Go to feed →"}
+                  Go to feed →
                 </button>
               )}
             </div>
