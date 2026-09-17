@@ -253,7 +253,6 @@ export default function PostComposer({
               aria-hidden
             />
             <textarea
-              autoFocus
               value={text}
               onChange={(e) => setText(e.target.value)}
               maxLength={MAX}
