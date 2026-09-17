@@ -261,26 +261,80 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
     return (
       <section
         style={returned ? { animationDelay: "0s" } : undefined}
-        className="rise m-auto flex w-full flex-col items-center gap-10 text-center sm:gap-14"
+        className="rise m-auto flex w-full max-w-xl flex-col gap-8 sm:gap-10"
       >
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-          Who&apos;s there?
-        </h1>
+        <header className="flex flex-col gap-1">
+          <span className="text-xs font-medium tracking-[0.3em] text-foreground/40 uppercase">
+            ink · a notebook for two
+          </span>
+          <h1 className="text-5xl leading-[0.95] font-semibold tracking-tighter sm:text-6xl">
+            Who are yew?
+          </h1>
+          <InkStroke className="mt-1 w-28 sm:w-32" />
+        </header>
 
-        <ul className="flex flex-wrap justify-center gap-8 sm:gap-12">
-          {PROFILES.map((p) => (
-            <li key={p.id}>
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4">
+          {PROFILES.map((p, i) => (
+            <li
+              key={p.id}
+              style={{ animationDelay: `${(returned ? 0 : 1600) + 150 + i * 90}ms` }}
+              className="enter"
+            >
               <button
                 type="button"
                 onClick={() => setAsking(p)}
-                className="group flex flex-col items-center gap-3 transition-transform duration-200 active:scale-[0.97]"
+                aria-label={`Open ${p.name}'s notebook`}
+                className={`group ink-fill relative flex aspect-[3/4] w-full flex-col justify-between overflow-hidden rounded-3xl p-4 text-left transition-transform duration-300 active:scale-[0.97] sm:p-5 ${i % 2 ? "ink-dots hover:rotate-1" : "ink-lines hover:-rotate-1"}`}
               >
-                <Avatar
-                  profile={p}
-                  className="size-28 rounded-3xl text-5xl ring-foreground ring-offset-4 ring-offset-background transition-all duration-200 group-hover:ring-2 group-focus-visible:ring-2 sm:size-40 sm:text-6xl"
+                {/* Spine */}
+                <span
+                  className="pointer-events-none absolute inset-y-0 left-0 w-2.5 border-r-[1.5px] border-foreground bg-foreground/10"
+                  aria-hidden
                 />
-                <span className="text-lg text-foreground/60 transition-colors group-hover:text-foreground sm:text-xl">
-                  {p.name}
+                <span
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background from-30% to-transparent"
+                  aria-hidden
+                />
+
+                <span className="relative flex items-start justify-between pl-2">
+                  <span className="text-xs font-medium tabular-nums opacity-50">
+                    0{i + 1}
+                  </span>
+                  <span className="grid size-9 place-items-center rounded-full border-[1.5px] border-current bg-background transition-transform duration-300 group-hover:-rotate-12">
+                    <Icon
+                      d="M7 11V8a5 5 0 0110 0v3M5 11h14v10H5zM12 15v2"
+                      className="size-4 transition-all duration-300 group-hover:scale-50 group-hover:opacity-0"
+                    />
+                    <Icon
+                      d={ARROW}
+                      className="absolute size-4 scale-50 opacity-0 transition-all duration-300 group-hover:scale-100 group-hover:rotate-12 group-hover:opacity-100"
+                    />
+                  </span>
+                </span>
+
+                {/* Photo taped to the cover */}
+                <span
+                  className={`relative mx-auto transition-transform duration-300 group-hover:rotate-0 ${i % 2 ? "rotate-3" : "-rotate-3"}`}
+                >
+                  <span className="block rounded-xl border-[1.5px] border-foreground bg-background p-1.5 pb-4">
+                    <Avatar
+                      profile={p}
+                      className="size-20 rounded-lg text-3xl sm:size-28 sm:text-5xl"
+                    />
+                  </span>
+                  <span
+                    className="absolute -top-2 left-1/2 h-4 w-10 -translate-x-1/2 rotate-2 bg-foreground/15"
+                    aria-hidden
+                  />
+                </span>
+
+                <span className="relative flex flex-col pl-2">
+                  <span className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                    {p.name}
+                  </span>
+                  <span className="text-xs opacity-60 sm:text-sm">
+                    Tap to unlock
+                  </span>
                 </span>
               </button>
             </li>
