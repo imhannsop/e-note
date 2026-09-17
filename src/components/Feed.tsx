@@ -243,6 +243,11 @@ export default function Feed({
                     >
                       {fmtWhen(post.at)}
                     </time>
+                    {post.tags && post.tags.length > 0 && (
+                      <span className="mt-0.5 text-xs text-[var(--gray)]">
+                        {post.tags.join(" · ")}
+                      </span>
+                    )}
                   </div>
                 </header>
                 {post.text && (

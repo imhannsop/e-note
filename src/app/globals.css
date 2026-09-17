@@ -146,7 +146,8 @@ body {
 /* Dev log, planner, gallery: app ink + paper, gray for metadata, one precious accent */
 .devlog,
 .planner,
-.gallery {
+.gallery,
+.composer {
   --ink: var(--foreground);
   --paper: var(--background);
   --gray: color-mix(in srgb, var(--foreground) 50%, transparent);
@@ -157,7 +158,8 @@ body {
 @media (prefers-color-scheme: dark) {
   .devlog,
   .planner,
-  .gallery {
+  .gallery,
+  .composer {
     --accent: #f06a55;
   }
 }
@@ -193,6 +195,25 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .fade-in {
+    animation: none;
+  }
+}
+
+/* Dropdowns unfold from their button */
+.drop-in {
+  transform-origin: top right;
+  animation: drop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drop-in {
     animation: none;
   }
 }

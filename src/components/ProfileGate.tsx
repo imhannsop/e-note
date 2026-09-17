@@ -4,39 +4,43 @@ import { useState } from "react";
 import DevLog from "@/components/DevLog";
 import Feed from "@/components/Feed";
 import Gallery from "@/components/Gallery";
+import Notifications from "@/components/Notifications";
 import PostComposer from "@/components/PostComposer";
 import WeeklyPlanner from "@/components/WeeklyPlanner";
 import { Avatar, PROFILES, type Profile } from "@/components/profiles";
 import { InkStroke } from "@/components/Splash";
+import { Icon } from "@/components/ui";
+
+const ARROW = "M7 17L17 7M9 7h8v8";
 
 // Main tile layout for the home screen
 const ACTIONS = [
   {
     id: "post",
-    icon: "✍️",
+    icon: "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4",
     label: "Write a post",
     hint: "Share what's on your mind",
     tile: "col-span-2 ink-solid",
   },
   {
     id: "todo",
-    icon: "✅",
+    icon: "M10 6h10M10 12h10M10 18h10M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5 2.5-2.5M3.5 18l1.5 1.5 2.5-2.5",
     label: "Dev log",
     hint: "Log your day",
     tile: "ink-dots",
   },
   {
     id: "planner",
-    icon: "🗓️",
+    icon: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2",
     label: "Weekly Planner",
     hint: "Plan your week",
     tile: "ink-lines",
   },
   {
     id: "gallery",
-    icon: "🖼️",
-    label: "View Gallery",
-    hint: "Browse your posts",
+    icon: "M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0",
+    label: "View Profile",
+    hint: "Your posts, likes & comments",
     tile: "col-span-2 ink-grid",
   },
 ] as const;
@@ -113,7 +117,7 @@ export default function ProfileGate() {
   if (profile) {
     const today = new Date().toLocaleDateString(undefined, {
       weekday: "long",
-      month: "long",
+      month: "short",
       day: "numeric",
     });
 
@@ -121,24 +125,30 @@ export default function ProfileGate() {
       <section className="flex w-full flex-1 flex-col gap-6 sm:gap-8">
         <header className="enter flex flex-col gap-1">
           <div className="flex items-center justify-between gap-4">
-            <span className="text-xs font-medium tracking-[0.3em] text-foreground/40 uppercase">
+            <span className="min-w-0 truncate text-xs font-medium tracking-[0.3em] text-foreground/40 uppercase">
               {today}
             </span>
-            <button
-              type="button"
-              onClick={() => {
-                setReturned(true);
-                setView("menu");
-                setProfile(null);
-              }}
-              className="flex items-center gap-2 rounded-full border border-foreground/20 py-1 pr-3 pl-1 text-xs font-medium"
-            >
-              <Avatar
+            <div className="flex items-center gap-2">
+              <Notifications
                 profile={profile}
-                className="size-6 rounded-full text-xs"
+                onOpenFeed={() => setView("feed")}
               />
-              Switch
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setReturned(true);
+                  setView("menu");
+                  setProfile(null);
+                }}
+                className="flex items-center gap-2 rounded-full border border-foreground/20 py-1 pr-3 pl-1 text-xs font-medium"
+              >
+                <Avatar
+                  profile={profile}
+                  className="size-6 rounded-full text-xs"
+                />
+                Switch
+              </button>
+            </div>
           </div>
           <h1 className="text-6xl leading-[0.95] font-semibold tracking-tighter break-words sm:text-7xl">
             Hello,
@@ -160,29 +170,50 @@ export default function ProfileGate() {
               <button
                 type="button"
                 onClick={() => setView(id)}
-                className={`group relative flex size-full flex-col justify-end overflow-hidden ink-fill rounded-3xl p-5 text-left transition-transform duration-200 active:scale-[0.97] ${tile}`}
+                className={`group relative flex size-full flex-col justify-between overflow-hidden ink-fill rounded-3xl p-4 text-left transition-transform duration-200 active:scale-[0.97] sm:p-5 ${tile}`}
               >
-                <span
-                  className="absolute -top-3 -right-3 text-8xl opacity-20 grayscale transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 sm:text-9xl"
-                  aria-hidden
-                >
-                  {icon}
+                {/* Texture fades out behind the label so the text stays clean */}
+                {id !== "post" && (
+                  <span
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background from-35% to-transparent"
+                    aria-hidden
+                  />
+                )}
+                <span className="relative flex items-start justify-between">
+                  <span className="text-xs font-medium tabular-nums opacity-50">
+                    0{i + 1}
+                  </span>
+                  <span
+                    className={`relative grid size-11 place-items-center rounded-full border-[1.5px] border-current transition-transform duration-300 group-hover:-rotate-12 ${id === "post" ? "" : "bg-background"}`}
+                  >
+                    <Icon
+                      d={icon}
+                      className="size-5 transition-all duration-300 group-hover:scale-50 group-hover:opacity-0"
+                    />
+                    <Icon
+                      d={ARROW}
+                      className="absolute size-5 scale-50 opacity-0 transition-all duration-300 group-hover:scale-100 group-hover:rotate-12 group-hover:opacity-100"
+                    />
+                  </span>
                 </span>
-                <span className="absolute top-4 left-5 text-xs font-medium tabular-nums opacity-50">
-                  0{i + 1}
+                <span className="relative flex flex-col">
+                  <span
+                    className={`font-semibold tracking-tight ${i === 0 ? "text-3xl sm:text-4xl" : "text-lg sm:text-xl"}`}
+                  >
+                    {label}
+                  </span>
+                  <span
+                    className={`text-sm opacity-60 ${id === "post" ? "pr-28" : ""}`}
+                  >
+                    {hint}
+                  </span>
                 </span>
-                <span
-                  className={`font-semibold tracking-tight ${i === 0 ? "text-3xl sm:text-4xl" : "text-lg sm:text-xl"}`}
-                >
-                  {label}
-                </span>
-                <span className="text-sm opacity-60">{hint}</span>
               </button>
               {id === "post" && (
                 <button
                   type="button"
                   onClick={() => setView("feed")}
-                  className="absolute top-3 right-3 rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-transform duration-200 active:scale-[0.97]"
+                  className="absolute right-4 bottom-4 rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-transform duration-200 active:scale-[0.97] sm:right-5 sm:bottom-5"
                 >
                   Go to feed →
                 </button>

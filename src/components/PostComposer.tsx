@@ -4,96 +4,36 @@ import { useEffect, useRef, useState } from "react";
 import { Avatar, type Profile } from "@/components/profiles";
 import { savePhotos } from "@/components/photos";
 import { savePost } from "@/components/posts";
-import { Icon, useKeyboardInset } from "@/components/ui";
+import { InkStroke } from "@/components/Splash";
+import { Icon, RULED, Step, useKeyboardInset } from "@/components/ui";
 
-type Media = { id: string; url: string; kind: "image" | "video"; file: File };
+type Kind = "image" | "video";
+type Media = { id: string; url: string; kind: Kind; file: File };
+type Draft = { text: string; tags: string[] };
 
-// Paper styles for the note surface
-const PAPERS = [
-  { id: "plain", label: "Plain", className: "" },
-  { id: "dots", label: "Dots", className: "ink-dots" },
-  { id: "lines", label: "Lines", className: "ink-lines" },
-  { id: "grid", label: "Grid", className: "ink-grid" },
-];
+const MAX = 2000;
+const TAGS = ["Morning", "Work", "Personal"];
 
 const ICONS = {
   close: "M6 6l12 12M18 6L6 18",
-  media:
+  photo:
     "M3 6a3 3 0 013-3h12a3 3 0 013 3v12a3 3 0 01-3 3H6a3 3 0 01-3-3zM21 15l-5-5L5 21M9 9h.01",
-  paper: "M4 4h16v16H4zM4 9h16M4 14h16M9 4v16",
+  video: "M3 6h12v12H3zM15 10l6-3v10l-6-3",
   plus: "M12 5v14M5 12h14",
-  back: "M15 18l-6-6 6-6",
 };
 
-// Drawer modes for the action panel and paper picker
-type Drawer = "expanded" | "paper";
+const ACCEPT: Record<Kind, string> = { image: "image/*", video: "video/*" };
 
-// Collage layout rules by photo count; 5+ shows a "+N" tile
-const COLLAGES: Record<number, { frame: string; tiles: string[] }> = {
-  1: { frame: "grid-cols-1 aspect-[4/3]", tiles: [""] },
-  2: { frame: "grid-cols-2 aspect-[2/1]", tiles: ["", ""] },
-  3: { frame: "grid-cols-2 grid-rows-2 aspect-square", tiles: ["row-span-2", "", ""] },
-  4: { frame: "grid-cols-2 grid-rows-2 aspect-square", tiles: ["", "", "", ""] },
-  5: {
-    frame: "grid-cols-6 grid-rows-[3fr_2fr] aspect-square",
-    tiles: ["col-span-3", "col-span-3", "col-span-2", "col-span-2", "col-span-2"],
-  },
-};
-
-function Collage({
-  media,
-  onRemove,
-}: {
-  media: Media[];
-  onRemove: (id: string) => void;
-}) {
-  const shown = media.slice(0, 5);
-  const extra = media.length - shown.length;
-  const { frame, tiles } = COLLAGES[shown.length];
-
-  return (
-    <ul
-      className={`grid w-full gap-1 overflow-hidden rounded-2xl transition-[aspect-ratio] duration-300 ${frame}`}
-    >
-      {shown.map((m, i) => (
-        <li
-          key={m.id}
-          className={`enter group relative min-h-0 overflow-hidden bg-foreground/10 ${tiles[i]}`}
-        >
-          {m.kind === "image" ? (
-            // eslint-disable-next-line @next/next/no-img-element -- local blob preview
-            <img
-              src={m.url}
-              alt=""
-              className="size-full object-cover grayscale transition-transform duration-500 group-hover:scale-105"
-            />
-          ) : (
-            <video
-              src={m.url}
-              muted
-              playsInline
-              loop
-              autoPlay
-              className="size-full object-cover grayscale"
-            />
-          )}
-          {extra > 0 && i === shown.length - 1 && (
-            <span className="absolute inset-0 grid place-items-center bg-foreground/60 text-3xl font-semibold text-background">
-              +{extra}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => onRemove(m.id)}
-            aria-label="Remove"
-            className="absolute top-2 right-2 grid size-7 place-items-center rounded-full bg-foreground/80 text-background backdrop-blur transition-transform duration-200 active:scale-90"
-          >
-            <Icon d={ICONS.close} className="size-4" />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
+function loadDraft(key: string): Draft {
+  try {
+    return {
+      text: "",
+      tags: [],
+      ...JSON.parse(localStorage.getItem(key) ?? "{}"),
+    };
+  } catch {
+    return { text: "", tags: [] };
+  }
 }
 
 export default function PostComposer({
@@ -103,11 +43,13 @@ export default function PostComposer({
   profile: Profile;
   onClose: () => void;
 }) {
-  const [text, setText] = useState("");
+  const draftKey = `ink:draft:${profile.id}`;
+  const [text, setText] = useState(() => loadDraft(draftKey).text);
+  const [tags, setTags] = useState<string[]>(() => loadDraft(draftKey).tags);
   const [media, setMedia] = useState<Media[]>([]);
-  const [paper, setPaper] = useState(PAPERS[0]);
-  const [drawer, setDrawer] = useState<Drawer>("expanded");
+  const [dragging, setDragging] = useState(false);
   const [posted, setPosted] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
   const keyboard = useKeyboardInset();
 
   // Release object URLs when the composer is torn down
@@ -120,14 +62,28 @@ export default function PostComposer({
     [],
   );
 
-  const canPost = !posted && (text.trim() !== "" || media.length > 0);
-  // Keep short notes larger and longer notes easier to read
-  const textSize =
-    media.length === 0 && text.length < 80
-      ? "text-xl"
-      : text.length < 200
-        ? "text-lg"
-        : "text-base";
+  // Drafts save as you type; media stays in memory only
+  useEffect(() => {
+    if (posted) return;
+    try {
+      if (text || tags.length)
+        localStorage.setItem(draftKey, JSON.stringify({ text, tags }));
+      else localStorage.removeItem(draftKey);
+    } catch {}
+  }, [draftKey, text, tags, posted]);
+
+  const canPost = !posted && text.trim() !== "";
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  function pick(kind: Kind) {
+    if (!picker.current) return;
+    picker.current.accept = ACCEPT[kind];
+    picker.current.click();
+  }
 
   function addFiles(files: FileList | null) {
     if (!files) return;
@@ -152,43 +108,64 @@ export default function PostComposer({
     });
   }
 
+  function toggleTag(tag: string) {
+    setTags((t) =>
+      t.includes(tag) ? t.filter((x) => x !== tag) : [...t, tag],
+    );
+  }
+
   async function post() {
     if (!canPost) return;
-    // Save media to the gallery and keep the entry in the feed
+    // Media goes to the gallery; the entry goes to the feed
     const at = new Date().toISOString();
     await savePhotos(
-      media.map((m) => ({ id: m.id, profileId: profile.id, blob: m.file, kind: m.kind, caption: text.trim(), at })),
+      media.map((m) => ({
+        id: m.id,
+        profileId: profile.id,
+        blob: m.file,
+        kind: m.kind,
+        caption: text.trim(),
+        at,
+      })),
     ).catch(() => {});
     savePost({
       id: crypto.randomUUID(),
       profileId: profile.id,
       text: text.trim(),
-      paper: paper.className,
+      paper: "",
+      tags,
       mediaIds: media.map((m) => m.id),
       at,
     });
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {}
     setPosted(true);
-    setTimeout(onClose, 900);
+    setTimeout(onClose, 1600);
   }
 
-  const actions = [
-    {
-      key: "media",
-      label: "Upload",
-      d: ICONS.media,
-      onClick: () => document.getElementById("post-media")?.click(),
-    },
-    {
-      key: "paper",
-      label: "Paper",
-      d: ICONS.paper,
-      onClick: () => setDrawer("paper"),
-    },
-  ];
+  const hasDraft = text !== "" || tags.length > 0;
+
+  if (posted) {
+    return (
+      <section
+        role="status"
+        className="composer fixed inset-0 z-50 flex flex-col items-center justify-center gap-5"
+      >
+        <InkStroke className="w-40" />
+        <span
+          className="enter text-xs font-medium tracking-[0.3em] text-[var(--gray)] uppercase"
+          style={{ animationDelay: "500ms" }}
+        >
+          Inked into the feed
+        </span>
+      </section>
+    );
+  }
 
   return (
     <section
-      className="fixed inset-x-0 top-0 z-50 flex flex-col bg-background"
+      className="composer fixed inset-x-0 top-0 z-50 flex flex-col"
       style={{
         bottom: keyboard,
         paddingTop: "env(safe-area-inset-top)",
@@ -196,72 +173,270 @@ export default function PostComposer({
         paddingRight: "env(safe-area-inset-right)",
       }}
     >
-      {/* Top navigation */}
-      <header className="enter relative mx-4 flex h-12 shrink-0 items-center justify-between border-b border-foreground/15">
+      {/* Header */}
+      <header className="enter relative mx-4 flex h-14 shrink-0 items-center justify-between border-b-[1.5px] border-foreground">
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="grid size-10 place-items-center rounded-full transition-transform duration-200 active:scale-[0.97]"
+          className="-ml-2 grid size-10 place-items-center rounded-full transition-transform duration-200 active:scale-[0.97]"
         >
           <Icon d={ICONS.close} />
         </button>
-        <span className="absolute left-1/2 -translate-x-1/2 font-semibold">
+        <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-tight">
           New entry
-        </span>
+        </h1>
         <button
           type="button"
           onClick={post}
-          disabled={!canPost && !posted}
-          className="ink-solid h-9 rounded-full px-5 text-sm font-semibold transition-all duration-200 active:scale-[0.97] disabled:opacity-30"
+          disabled={!canPost}
+          className={`h-9 rounded-full px-5 text-sm font-semibold transition-all duration-200 active:scale-[0.97] ${
+            canPost
+              ? "bg-[var(--accent)] text-white"
+              : "border-[1.5px] border-[var(--gray)] text-[var(--gray)]"
+          }`}
         >
-          {posted ? "Posted ✓" : "Post"}
+          Post
         </button>
       </header>
 
-      {/* Main canvas */}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-4 pb-4">
-        {/* Who's posting */}
-        <div
-          className="enter flex items-center gap-3"
+      {/* Composition */}
+      <div
+        className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-4 pt-5 pb-6"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node))
+            setDragging(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          addFiles(e.dataTransfer.files);
+        }}
+      >
+        {/* Who and when, in the home screen's voice */}
+        <div className="enter flex items-end justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium tracking-[0.3em] text-[var(--gray)] uppercase">
+              {today}
+            </span>
+            <p className="text-4xl leading-[0.95] font-semibold tracking-tighter">
+              Dear diary,
+              <br />
+              <span className="text-[var(--gray)]">
+                it&apos;s {profile.name}.
+              </span>
+            </p>
+          </div>
+          <Avatar
+            profile={profile}
+            className="size-14 -rotate-3 rounded-2xl text-2xl ring-[1.5px] ring-foreground ring-offset-2 ring-offset-background"
+          />
+        </div>
+
+        {/* 01: the page you write on */}
+        <section
+          className="enter flex flex-col gap-2"
           style={{ animationDelay: "60ms" }}
         >
-          <Avatar profile={profile} className="size-12 rounded-2xl text-xl" />
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="leading-none font-semibold">{profile.name}</span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="rounded-md border border-foreground/30 px-1.5 py-0.5 text-[10px] font-medium tracking-widest uppercase">
-                {new Date().toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-          </div>
-        </div>
+          <Step n={1} label="Write" />
+          <label className="ink-fill relative block overflow-hidden rounded-3xl">
+            <span className="sr-only">Entry text</span>
+            {/* Margin rule, like a notebook */}
+            <span
+              className="pointer-events-none absolute inset-y-0 left-10 w-px bg-[var(--accent)]/40"
+              aria-hidden
+            />
+            <textarea
+              autoFocus
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              maxLength={MAX}
+              placeholder="What's on your mind?"
+              style={RULED}
+              className="field-sizing-content block min-h-48 w-full resize-none bg-transparent pt-4 pr-4 pb-10 pl-14 text-lg leading-8 outline-none placeholder:text-[var(--gray)]"
+            />
+            <span
+              className={`pointer-events-none absolute right-4 bottom-3 rounded-full bg-background px-2 text-[11px] font-medium tabular-nums ${
+                text.length > MAX * 0.9
+                  ? "text-[var(--accent)]"
+                  : "text-[var(--gray)]"
+              }`}
+            >
+              {text.length}/{MAX}
+            </span>
+          </label>
+        </section>
 
-        {/* The page */}
-        <div
-          className={`enter ink-fill flex flex-1 flex-col gap-4 rounded-3xl p-4 transition-[background] ${paper.className}`}
+        {/* 02: media, optional */}
+        <section
+          className="enter flex flex-col gap-2"
           style={{ animationDelay: "120ms" }}
         >
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="What's on yo mind?"
-            aria-label="Post text"
-            className={`field-sizing-content min-h-32 w-full resize-none bg-transparent leading-snug outline-none transition-[font-size] duration-200 placeholder:text-foreground/30 ${textSize}`}
-          />
-          {media.length > 0 && <Collage media={media} onRemove={remove} />}
-        </div>
+          <Step n={2} label="Attach" optional />
+          {dragging ? (
+            <div className="ink-solid fade-in grid h-32 place-items-center rounded-3xl text-lg font-semibold tracking-tight">
+              Drop to attach
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {(
+                [
+                  {
+                    kind: "image",
+                    label: "Photo",
+                    hint: "JPG, PNG, HEIC",
+                    d: ICONS.photo,
+                    tile: "ink-dots",
+                  },
+                  {
+                    kind: "video",
+                    label: "Video",
+                    hint: "MP4, MOV",
+                    d: ICONS.video,
+                    tile: "ink-lines",
+                  },
+                ] as const
+              ).map((a) => (
+                <button
+                  key={a.kind}
+                  type="button"
+                  onClick={() => pick(a.kind)}
+                  className={`ink-fill group relative flex h-32 flex-col justify-between overflow-hidden rounded-3xl p-4 text-left transition-transform duration-200 active:scale-[0.97] ${a.tile}`}
+                >
+                  {/* Texture fades out behind the label, like the home tiles */}
+                  <span
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background from-35% to-transparent"
+                    aria-hidden
+                  />
+                  <span className="relative flex justify-end">
+                    <span className="relative grid size-10 place-items-center rounded-full border-[1.5px] border-current bg-background transition-transform duration-300 group-hover:-rotate-12">
+                      <Icon
+                        d={a.d}
+                        className="size-[18px] transition-all duration-300 group-hover:scale-50 group-hover:opacity-0"
+                      />
+                      <Icon
+                        d={ICONS.plus}
+                        className="absolute size-[18px] scale-50 opacity-0 transition-all duration-300 group-hover:scale-100 group-hover:rotate-12 group-hover:opacity-100"
+                      />
+                    </span>
+                  </span>
+                  <span className="relative flex flex-col">
+                    <span className="text-lg font-semibold tracking-tight">
+                      {a.label}
+                    </span>
+                    <span className="text-xs opacity-60">{a.hint}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {!dragging && media.length === 0 && (
+            <p className="text-xs text-[var(--gray)]">
+              Tap to upload or drag files
+            </p>
+          )}
+
+          {media.length > 0 && (
+            <ul className="flex flex-wrap gap-3 pt-2">
+              {media.map((m, i) => (
+                <li
+                  key={m.id}
+                  className={`check-pop relative size-20 rounded-xl bg-background p-1 shadow-[2px_2px_0_var(--foreground)] ring-[1.5px] ring-foreground ${
+                    i % 2 ? "rotate-2" : "-rotate-2"
+                  }`}
+                >
+                  <span className="block size-full overflow-hidden rounded-lg">
+                    {m.kind === "image" ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- local blob preview
+                      <img
+                        src={m.url}
+                        alt=""
+                        className="size-full object-cover grayscale"
+                      />
+                    ) : (
+                      <video
+                        src={m.url}
+                        muted
+                        playsInline
+                        className="size-full object-cover grayscale"
+                      />
+                    )}
+                  </span>
+                  <span className="absolute bottom-2 left-2 rounded bg-background px-1 text-[10px] font-medium tabular-nums">
+                    {m.kind === "video" ? "▶ " : ""}
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => remove(m.id)}
+                    aria-label="Remove"
+                    className="ink-solid absolute -top-2 -right-2 grid size-6 place-items-center rounded-full transition-transform duration-200 active:scale-90"
+                  >
+                    <Icon d={ICONS.close} className="size-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* 03: mood, optional */}
+        <section
+          className="enter flex flex-col gap-2"
+          style={{ animationDelay: "180ms" }}
+        >
+          <Step n={3} label="Mood" optional />
+          <div className="flex flex-wrap gap-2">
+            {TAGS.map((tag) => {
+              const on = tags.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  aria-pressed={on}
+                  className={`h-9 rounded-full border-[1.5px] border-foreground px-4 text-sm font-medium transition-all duration-150 active:scale-[0.97] ${
+                    on ? "ink-solid" : ""
+                  }`}
+                >
+                  {on ? "✓ " : ""}
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </div>
 
+      {/* Footer */}
+      <footer
+        className="mx-4 flex shrink-0 items-center justify-between border-t-[1.5px] border-foreground py-3"
+        style={{
+          paddingBottom:
+            keyboard > 0
+              ? undefined
+              : "max(0.75rem, env(safe-area-inset-bottom))",
+        }}
+      >
+        <span className="text-[11px] font-medium tracking-[0.2em] text-[var(--gray)] uppercase">
+          {hasDraft ? "● Draft saved" : "Text required"}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-9 px-2 text-sm font-medium text-[var(--gray)] transition-colors hover:text-foreground"
+        >
+          {hasDraft ? "Save draft" : "Cancel"}
+        </button>
+      </footer>
+
       <input
-        id="post-media"
+        ref={picker}
         type="file"
-        accept="image/*,video/*"
         multiple
         hidden
         onChange={(e) => {
@@ -269,74 +444,6 @@ export default function PostComposer({
           e.target.value = "";
         }}
       />
-
-      {/* Attachment drawer */}
-      <footer
-        className="enter mx-4 mb-3 shrink-0 rounded-2xl border border-foreground/20 bg-background"
-        style={{
-          animationDelay: "180ms",
-          marginBottom:
-            keyboard > 0 ? 8 : "max(0.75rem, env(safe-area-inset-bottom))",
-        }}
-      >
-        <div className="flex flex-col gap-3 p-4">
-          <div className="flex items-center gap-1">
-            {drawer !== "expanded" && (
-              <button
-                type="button"
-                onClick={() => setDrawer("expanded")}
-                aria-label="Back"
-                className="-ml-2 grid size-8 place-items-center rounded-full"
-              >
-                <Icon d={ICONS.back} />
-              </button>
-            )}
-            <h2 className="font-semibold">
-              {drawer === "paper" ? "Choose paper" : "Add to your post"}
-            </h2>
-          </div>
-
-          {drawer === "expanded" && (
-            <ul className="enter grid grid-cols-2 gap-2">
-              {actions.map((a) => (
-                <li key={a.key}>
-                  <button
-                    type="button"
-                    onClick={a.onClick}
-                    className="flex w-full items-center gap-3 rounded-2xl border border-foreground/20 p-4 text-left font-medium transition-transform duration-200 active:scale-[0.97]"
-                  >
-                    <Icon d={a.d} className="size-6" />
-                    <span className="flex-1">{a.label}</span>
-                    <Icon d={ICONS.plus} className="size-5 opacity-50" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {drawer === "paper" && (
-            <ul className="enter grid grid-cols-4 gap-2">
-              {PAPERS.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => setPaper(p)}
-                    className={`ink-fill flex aspect-square w-full items-end justify-center rounded-2xl pb-2 text-xs font-medium transition-transform duration-200 active:scale-[0.97] ${p.className} ${
-                      paper.id === p.id
-                        ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
-                        : ""
-                    }`}
-                  >
-                    <span className="rounded bg-background px-1">
-                      {p.label}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </footer>
     </section>
   );
 }

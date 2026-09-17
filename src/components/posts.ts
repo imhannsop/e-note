@@ -5,6 +5,7 @@ export type Post = {
   profileId: string;
   text: string;
   paper: string; // tile texture class, "" for plain
+  tags?: string[]; // mood tags picked in the composer
   mediaIds: string[];
   // Direct media links, used by the sample posts (and later by database URLs)
   mediaUrls?: { kind: "image" | "video"; url: string }[];
@@ -99,6 +100,7 @@ export type Comment = {
 export type Reactions = {
   likes: Record<string, string[]>; // post id -> profile ids
   comments: Record<string, Comment[]>;
+  likedAt?: Record<string, Record<string, string>>; // post id -> profile id -> ISO time
 };
 
 const REACTIONS_KEY = "ink:reactions";
@@ -125,9 +127,14 @@ function writeReactions(r: Reactions) {
 export function toggleLike(postId: string, profileId: string) {
   const r = readReactions();
   const likes = r.likes[postId] ?? [];
-  r.likes[postId] = likes.includes(profileId)
+  const liked = likes.includes(profileId);
+  r.likes[postId] = liked
     ? likes.filter((id) => id !== profileId)
     : [...likes, profileId];
+  // Remember when, so notifications can be ordered
+  const times = ((r.likedAt ??= {})[postId] ??= {});
+  if (liked) delete times[profileId];
+  else times[profileId] = new Date().toISOString();
   writeReactions(r);
 }
 
@@ -162,4 +169,19 @@ export function subscribePosts(onChange: () => void) {
     ch.close();
     window.removeEventListener("storage", onStorage);
   };
+}
+
+// Removes the post and its likes/comments; the caller removes its stored media
+export function deletePost(postId: string) {
+  try {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify(read().filter((p) => p.id !== postId)),
+    );
+    const r = readReactions();
+    delete r.likes[postId];
+    delete r.comments[postId];
+    delete r.likedAt?.[postId];
+    writeReactions(r);
+  } catch {}
 }
