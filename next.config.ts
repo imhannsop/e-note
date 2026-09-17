@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Let phones on the home network use the dev server (dev only; no effect in production)
+  // Local dev host access.
   allowedDevOrigins: ["192.168.*.*"],
 };
 

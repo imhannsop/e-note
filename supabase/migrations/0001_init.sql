@@ -1,9 +1,9 @@
--- e-note schema. Run once in the Supabase SQL editor (or `supabase db push`).
+-- Initial schema for e-note. Run this once in the Supabase SQL editor or with `supabase db push`.
 --
--- Access model: the browser never queries these tables. Every read and write goes
--- through Next.js server actions that check the signed session cookie and then use
--- the service-role key. RLS is enabled with no policies, so the public anon key
--- can read or write nothing here.
+-- Browser clients do not query these tables directly. Reads and writes go through
+-- Next.js server actions, which validate the signed session and use the
+-- service-role key. RLS is enabled with no policies, so the anon key cannot read
+-- or write anything here.
 
 create table public.profiles (
   id text primary key,                        -- 'sop', 'ling'
@@ -52,7 +52,7 @@ create table public.comments (
 );
 create index comments_post_idx on public.comments (post_id);
 
--- Private per-profile app state (dev log, weekly planner), saved as whole documents
+-- Per-profile app state for dev logs and the weekly planner; stored as full documents.
 create table public.documents (
   profile_id text not null references public.profiles (id) on delete cascade,
   kind text not null check (kind in ('devlog', 'planner')),
@@ -68,10 +68,10 @@ alter table public.likes enable row level security;
 alter table public.comments enable row level security;
 alter table public.documents enable row level security;
 
--- Anon/authenticated roles get nothing, even if a policy is added by mistake later
+-- Keep the anon and authenticated roles empty unless a policy is explicitly added.
 revoke all on public.profiles, public.posts, public.post_media, public.likes, public.comments, public.documents
   from anon, authenticated;
 
--- Private bucket for photos and videos; accessed only through server-issued signed URLs
+-- Private bucket for photos and videos. Access is limited to server-issued signed URLs.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('media', 'media', false, 52428800, array['image/*', 'video/*']);

@@ -2,8 +2,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-// Public (anon) client. It can't read any table (RLS denies everything); it's only
-// used for the realtime "changed" ping and for uploading to server-signed upload URLs.
+// Public client for ping and uploads.
 let client: SupabaseClient | null = null;
 
 export function browserDb() {
@@ -17,7 +16,7 @@ export function browserDb() {
   return client;
 }
 
-// Calls back whenever any device changes shared data
+// Listen for shared-data changes.
 export function subscribeChanges(onChange: () => void) {
   const channel = browserDb()
     .channel("ink")

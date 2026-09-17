@@ -1,8 +1,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
-// Service-role client: full access, so it must never reach the browser.
-// Every caller is responsible for checking the session first.
+// Server-only Supabase client.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -18,7 +17,7 @@ export const db = createClient(url, key, {
 
 export const BUCKET = "media";
 
-// Tell open screens something changed. Carries no data; clients refetch through actions.
+// Notify listeners that data changed.
 export async function ping() {
   await db
     .channel("ink")

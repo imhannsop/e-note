@@ -30,12 +30,12 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
-  /* Keep content clear of notches and home indicators */
+  /* Safe area */
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-/* Splash: ink stroke writes itself, then a drop lands */
+/* Ink splash */
 .ink-stroke {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
@@ -79,7 +79,7 @@ body {
   }
 }
 
-/* Ruled notebook paper */
+/* Notebook paper */
 .paper {
   background-image: repeating-linear-gradient(
     to bottom,
@@ -88,7 +88,7 @@ body {
   );
 }
 
-/* Entrance, starting as the splash fades */
+/* Entrance */
 .paper,
 .rise {
   animation: paper-in 0.5s 1.6s ease-out both;
@@ -101,7 +101,7 @@ body {
   }
 }
 
-/* Menu pieces rising in after a profile is picked */
+/* Menu in */
 .enter {
   animation: enter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -121,7 +121,7 @@ body {
   }
 }
 
-/* E-ink tile textures: grayscale patterns instead of color */
+/* Ink tiles */
 .ink-fill {
   --ink: color-mix(in srgb, var(--foreground) 14%, transparent);
   border: 1.5px solid var(--foreground);
@@ -148,7 +148,7 @@ body {
   color: var(--background);
 }
 
-/* Dev log, planner, gallery: app ink + paper, gray for metadata, one precious accent */
+/* App themes */
 .devlog,
 .planner,
 .gallery,
@@ -169,7 +169,7 @@ body {
   }
 }
 
-/* Planner check: a quick ink-down when a cell is completed */
+/* Check animation */
 .check-pop {
   animation: check-pop 0.28s cubic-bezier(0.3, 1.4, 0.5, 1) both;
 }
@@ -187,7 +187,7 @@ body {
   }
 }
 
-/* Viewer: plain fade, no bounce */
+/* Viewer fade */
 .fade-in {
   animation: fade-in 0.18s ease-out both;
 }
@@ -204,7 +204,7 @@ body {
   }
 }
 
-/* Dropdowns unfold from their button */
+/* Dropdown */
 .drop-in {
   transform-origin: top right;
   animation: drop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -223,7 +223,7 @@ body {
   }
 }
 
-/* Wrong PIN: a short side-to-side shake */
+/* Wrong PIN */
 .pin-shake {
   animation: pin-shake 0.36s ease-in-out;
 }

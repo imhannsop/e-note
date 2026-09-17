@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// One day of the planner: completed checks out of the tasks that were due.
+// One planner day.
 export type Point = { day: string; done: number; total: number };
 
 const H = 160;
@@ -11,7 +11,7 @@ const PAD = { top: 12, right: 40, bottom: 22, left: 4 };
 const pctOf = (p: Point) => (p.total ? (p.done / p.total) * 100 : null);
 const fmtDay = (k: string, opts: Intl.DateTimeFormatOptions) => new Date(`${k}T00:00`).toLocaleDateString(undefined, opts);
 
-// Overall completion rate across the selected window.
+// Overall completion rate.
 export function rateOf(points: Point[]) {
   const done = points.reduce((n, p) => n + p.done, 0);
   const total = points.reduce((n, p) => n + p.total, 0);
@@ -37,7 +37,7 @@ export default function TrendChart({ points, previous }: { points: Point[]; prev
   const x = (i: number) => PAD.left + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const y = (v: number) => PAD.top + (1 - v / 100) * plotH;
 
-  // Keep gaps for days without tasks instead of inventing zeroes.
+  // Leave empty days as gaps.
   const runs: { i: number; v: number }[][] = [];
   let run: { i: number; v: number }[] = [];
   points.forEach((p, i) => {
@@ -74,7 +74,7 @@ export default function TrendChart({ points, previous }: { points: Point[]; prev
 
   return (
     <figure className="flex flex-col gap-2">
-      {/* Period summary and change versus the previous period */}
+      {/* Summary and change */}
       <figcaption className="flex items-end justify-between gap-2">
         <div className="flex flex-col gap-0.5">
           <span className="text-[10px] font-medium tracking-widest text-[var(--gray)] uppercase">
@@ -107,7 +107,7 @@ export default function TrendChart({ points, previous }: { points: Point[]; prev
         onPointerLeave={() => setHover(null)}
       >
         <svg width={w} height={H} className="block overflow-visible" role="img" aria-label={`Daily completion rate, ${rate === null ? "no data" : `${rate.toFixed(1)}% overall`}`}>
-          {/* Fixed 0–100 grid so the chart doesn't exaggerate small swings. */}
+          {/* Fixed 0–100 scale. */}
           {[0, 50, 100].map((v) => (
             <g key={v}>
               <line
@@ -148,7 +148,7 @@ export default function TrendChart({ points, previous }: { points: Point[]; prev
             </g>
           ))}
 
-          {/* Latest value shown as the active marker */}
+          {/* Latest value marker */}
           {last && hover === null && (
             <g>
               <circle cx={x(last.i)} cy={y(last.v)} r={4} fill="currentColor" stroke="var(--paper)" strokeWidth={2} />
@@ -156,7 +156,7 @@ export default function TrendChart({ points, previous }: { points: Point[]; prev
             </g>
           )}
 
-          {/* Hover cursor */}
+          {/* Hover state */}
           {hover !== null && (
             <g>
               <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={PAD.top + plotH} stroke="currentColor" strokeOpacity={0.4} strokeWidth={1} shapeRendering="crispEdges" />
@@ -181,7 +181,7 @@ export default function TrendChart({ points, previous }: { points: Point[]; prev
         )}
       </div>
 
-      {/* Full values in a table when the chart is collapsed */}
+      {/* Full values table */}
       <details className="text-xs text-[var(--gray)]">
         <summary className="cursor-pointer select-none">Show as table</summary>
         <table className="mt-2 w-full tabular-nums">

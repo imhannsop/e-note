@@ -10,8 +10,7 @@ import {
 import { PROFILE_IDS, type ProfileId } from "@/lib/profiles";
 import type { Feed, MediaKind, ProfileMeta, UploadSlot } from "@/lib/types";
 
-// Every action below runs on the server. Anything exported here is callable from
-// the browser with arbitrary arguments, so each one checks the session and validates input.
+// Server actions only.
 
 const MAX_TRIES = 5;
 const LOCK_MINUTES = 15;
@@ -21,7 +20,7 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
-// ---------- Auth ----------
+// Auth
 
 export type SignInResult = { ok: true } | { ok: false; error: string };
 
@@ -76,7 +75,7 @@ export async function signIn(
   return { ok: true };
 }
 
-// Whether a profile still needs its first PIN. Reveals nothing else.
+// PIN status.
 export async function pinStatus(
   profileId: string,
 ): Promise<{ hasPin: boolean }> {
@@ -89,8 +88,7 @@ export async function pinStatus(
   return { hasPin: Boolean(data?.pin_hash) };
 }
 
-// First-time setup: each person picks their own PIN on their own device.
-// Only works while the profile has no PIN, so an existing PIN can't be replaced here.
+// First-time PIN setup.
 export async function createPin(
   profileId: string,
   pin: string,
@@ -105,7 +103,7 @@ export async function createPin(
     return { ok: false, error: "Too easy to guess. Pick another." };
   }
 
-  // The null check happens in the same statement, so two devices can't both claim it
+  // Guard against race conditions.
   const { data, error } = await db
     .from("profiles")
     .update({
@@ -128,7 +126,7 @@ export async function signOut() {
   await deleteSession();
 }
 
-// ---------- Profiles ----------
+// Profiles
 
 export async function getProfileMeta(profileId: string): Promise<ProfileMeta> {
   await requireProfile();
@@ -147,7 +145,7 @@ export async function saveProfileMeta(meta: ProfileMeta) {
   await db.from("profiles").update({ display_name: name, bio }).eq("id", me);
 }
 
-// ---------- Feed ----------
+// Feed
 
 export async function getFeed(): Promise<Feed> {
   await requireProfile();
@@ -210,8 +208,7 @@ export async function getFeed(): Promise<Feed> {
   };
 }
 
-// Upload slots for new media. Files go straight from the browser to storage,
-// so they don't pass through (or hit the size limit of) server actions.
+// Media upload slots.
 export async function createUploadSlots(
   files: { kind: MediaKind; ext: string }[],
 ): Promise<UploadSlot[]> {
@@ -247,7 +244,7 @@ export async function createPost(input: {
     .map(String)
     .slice(0, 10);
   const media = Array.isArray(input.media) ? input.media.slice(0, 20) : [];
-  // Only attach files this profile uploaded
+  // Only allow files from this profile.
   if (
     media.some(
       (m) =>

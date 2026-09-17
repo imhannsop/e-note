@@ -11,9 +11,7 @@ import { getDoc, saveDoc } from "@/app/actions";
 
 type Kind = "devlog" | "planner";
 
-// A private per-profile document kept on the server. Loads once, then saves
-// shortly after each change. The first time, it adopts whatever this browser
-// had saved locally, so nothing written before the database is lost.
+// Server-backed profile document.
 export function useDoc<T>(
   kind: Kind,
   legacyKey: string,

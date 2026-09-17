@@ -34,7 +34,7 @@ export async function deleteSession() {
   (await cookies()).delete(COOKIE);
 }
 
-// The signed-in profile, or null. Never trust a profile id sent from the client.
+// Current signed-in profile, or null.
 export async function currentProfile(): Promise<ProfileId | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
