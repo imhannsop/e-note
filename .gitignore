@@ -59,8 +59,8 @@ supabase/.branches/
 *.db
 /screenshots/
 
-# vercel
-.vercel
+# netlify
+.netlify
 
 # typescript
 *.tsbuildinfo

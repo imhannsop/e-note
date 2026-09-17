@@ -29,8 +29,8 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deploy on Netlify
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. In Netlify, choose **Add new site → Import an existing project** and pick this repo. Netlify detects Next.js and sets the build up automatically (see `netlify.toml`).
+2. Under **Site configuration → Environment variables**, add the four values from `.env.example`. Mark `SUPABASE_SERVICE_ROLE_KEY` and `SESSION_SECRET` as secret; the two `NEXT_PUBLIC_*` values are public by design.
+3. Trigger a deploy. Redeploy whenever you change a variable.
