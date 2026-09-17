@@ -57,3 +57,29 @@ export default function Splash() {
     </div>
   );
 }
+
+// Short splash shown over a screen while it opens underneath.
+export function ScreenSplash({ onDone }: { onDone: () => void }) {
+  const [fading, setFading] = useState(false);
+
+  useEffect(() => {
+    const fade = setTimeout(() => setFading(true), 600);
+    const done = setTimeout(onDone, 800);
+    return () => {
+      clearTimeout(fade);
+      clearTimeout(done);
+    };
+  }, [onDone]);
+
+  return (
+    <div
+      role="status"
+      aria-label="Loading"
+      className={`ink-fast fixed inset-0 z-[60] flex items-center justify-center bg-background transition-opacity duration-200 ${
+        fading ? "pointer-events-none opacity-0" : "opacity-100"
+      }`}
+    >
+      <InkStroke className="w-32 sm:w-40" />
+    </div>
+  );
+}

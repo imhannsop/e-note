@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import DevLog from "@/components/DevLog";
 import Feed from "@/components/Feed";
 import Gallery from "@/components/Gallery";
@@ -10,7 +10,7 @@ import PinPad from "@/components/PinPad";
 import PostComposer from "@/components/PostComposer";
 import WeeklyPlanner from "@/components/WeeklyPlanner";
 import { Avatar, PROFILES, type Profile } from "@/components/profiles";
-import { InkStroke } from "@/components/Splash";
+import { InkStroke, ScreenSplash } from "@/components/Splash";
 import { Icon } from "@/components/ui";
 
 const ARROW = "M7 17L17 7M9 7h8v8";
@@ -62,218 +62,238 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
   const [view, setView] = useState<
     "menu" | "post" | "feed" | "todo" | "planner" | "gallery"
   >("menu");
+  // Quick splash while a tapped screen opens
+  const [splash, setSplash] = useState(false);
+  const hideSplash = useCallback(() => setSplash(false), []);
 
-  // Called after the server accepted the PIN and set the session cookie
-  function open(p: Profile) {
-    setAsking(null);
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setProfile(p);
-      return;
+  function go(next: typeof view) {
+    setView(next);
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
+      setSplash(true);
+  }
+
+  function render() {
+    // Called after the server accepted the PIN and set the session cookie
+    function open(p: Profile) {
+      setAsking(null);
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setProfile(p);
+        return;
+      }
+      setPicking(p);
+      // Long enough for the ink stroke to finish writing
+      setTimeout(() => {
+        setProfile(p);
+        setPicking(null);
+      }, 1500);
     }
-    setPicking(p);
-    // Long enough for the ink stroke to finish writing
-    setTimeout(() => {
-      setProfile(p);
-      setPicking(null);
-    }, 1500);
-  }
 
-  if (asking) {
-    return (
-      <PinPad
-        profile={asking}
-        onBack={() => setAsking(null)}
-        onSuccess={() => open(asking)}
-      />
-    );
-  }
-
-  if (picking) {
-    return (
-      <section
-        role="status"
-        aria-label={`Opening ${picking.name}`}
-        className="enter m-auto flex flex-col items-center gap-6"
-      >
-        <Avatar
-          profile={picking}
-          className="size-24 rounded-3xl text-4xl sm:size-28 sm:text-5xl"
+    if (asking) {
+      return (
+        <PinPad
+          profile={asking}
+          onBack={() => setAsking(null)}
+          onSuccess={() => open(asking)}
         />
-        <InkStroke className="w-32 sm:w-40" />
-        <span className="text-xs font-medium tracking-[0.3em] text-foreground/50 uppercase">
-          Opening {picking.name}&apos;s notebook
-        </span>
-      </section>
-    );
-  }
+      );
+    }
 
-  if (profile && view === "post") {
-    return <PostComposer profile={profile} onClose={() => setView("menu")} />;
-  }
+    if (picking) {
+      return (
+        <section
+          role="status"
+          aria-label={`Opening ${picking.name}`}
+          className="enter m-auto flex flex-col items-center gap-6"
+        >
+          <Avatar
+            profile={picking}
+            className="size-24 rounded-3xl text-4xl sm:size-28 sm:text-5xl"
+          />
+          <InkStroke className="w-32 sm:w-40" />
+          <span className="text-xs font-medium tracking-[0.3em] text-foreground/50 uppercase">
+            Opening {picking.name}&apos;s notebook
+          </span>
+        </section>
+      );
+    }
 
-  if (profile && view === "feed") {
-    return (
-      <Feed
-        profile={profile}
-        onClose={() => setView("menu")}
-        onWrite={() => setView("post")}
-      />
-    );
-  }
+    if (profile && view === "post") {
+      return <PostComposer profile={profile} onClose={() => setView("menu")} />;
+    }
 
-  if (profile && view === "gallery") {
-    return <Gallery profile={profile} onClose={() => setView("menu")} />;
-  }
+    if (profile && view === "feed") {
+      return (
+        <Feed
+          profile={profile}
+          onClose={() => setView("menu")}
+          onWrite={() => setView("post")}
+        />
+      );
+    }
 
-  if (profile && view === "planner") {
-    return <WeeklyPlanner profile={profile} onClose={() => setView("menu")} />;
-  }
+    if (profile && view === "gallery") {
+      return <Gallery profile={profile} onClose={() => setView("menu")} />;
+    }
 
-  if (profile && view === "todo") {
-    return <DevLog profile={profile} onClose={() => setView("menu")} />;
-  }
+    if (profile && view === "planner") {
+      return (
+        <WeeklyPlanner profile={profile} onClose={() => setView("menu")} />
+      );
+    }
 
-  if (profile) {
-    const today = new Date().toLocaleDateString(undefined, {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-    });
+    if (profile && view === "todo") {
+      return <DevLog profile={profile} onClose={() => setView("menu")} />;
+    }
 
-    return (
-      <section className="flex w-full flex-1 flex-col gap-6 sm:gap-8">
-        <header className="enter flex flex-col gap-1">
-          <div className="flex items-center justify-between gap-4">
-            <span className="min-w-0 truncate text-xs font-medium tracking-[0.3em] text-foreground/40 uppercase">
-              {today}
-            </span>
-            <div className="flex items-center gap-2">
-              <Notifications
-                profile={profile}
-                onOpenFeed={() => setView("feed")}
-              />
-              <button
-                type="button"
-                onClick={async () => {
-                  // Switching signs this device out, so the next person needs their PIN
-                  await signOut().catch(() => {});
-                  setReturned(true);
-                  setView("menu");
-                  setProfile(null);
-                }}
-                className="flex items-center gap-2 rounded-full border border-foreground/20 py-1 pr-3 pl-1 text-xs font-medium"
-              >
-                <Avatar
+    if (profile) {
+      const today = new Date().toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      });
+
+      return (
+        <section className="flex w-full flex-1 flex-col gap-6 sm:gap-8">
+          <header className="enter flex flex-col gap-1">
+            <div className="flex items-center justify-between gap-4">
+              <span className="min-w-0 truncate text-xs font-medium tracking-[0.3em] text-foreground/40 uppercase">
+                {today}
+              </span>
+              <div className="flex items-center gap-2">
+                <Notifications
                   profile={profile}
-                  className="size-6 rounded-full text-xs"
+                  onOpenFeed={() => setView("feed")}
                 />
-                Switch
-              </button>
-            </div>
-          </div>
-          <h1 className="text-6xl leading-[0.95] font-semibold tracking-tighter break-words sm:text-7xl">
-            Hello,
-            <br />
-            <span className="text-7xl">{profile.name}</span> !
-          </h1>
-          <p className="mt-2 text-2xl text-foreground/50 sm:text-xl">
-            What will you do today?
-          </p>
-        </header>
-
-        <div className="grid min-h-96 flex-1 grid-cols-2 grid-rows-[1.6fr_1fr_0.8fr] gap-3">
-          {ACTIONS.map(({ id, icon, label, hint, tile }, i) => (
-            <div
-              key={id}
-              style={{ animationDelay: `${150 + i * 70}ms` }}
-              className={`enter relative ${tile.includes("col-span-2") ? "col-span-2" : ""}`}
-            >
-              <button
-                type="button"
-                onClick={() => setView(id)}
-                className={`group relative flex size-full flex-col justify-between overflow-hidden ink-fill rounded-3xl p-4 text-left transition-transform duration-200 active:scale-[0.97] sm:p-5 ${tile}`}
-              >
-                {/* Texture fades out behind the label so the text stays clean */}
-                {id !== "post" && (
-                  <span
-                    className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background from-35% to-transparent"
-                    aria-hidden
-                  />
-                )}
-                <span className="relative flex items-start justify-between">
-                  <span className="text-xs font-medium tabular-nums opacity-50">
-                    0{i + 1}
-                  </span>
-                  <span
-                    className={`relative grid size-11 place-items-center rounded-full border-[1.5px] border-current transition-transform duration-300 group-hover:-rotate-12 ${id === "post" ? "" : "bg-background"}`}
-                  >
-                    <Icon
-                      d={icon}
-                      className="size-5 transition-all duration-300 group-hover:scale-50 group-hover:opacity-0"
-                    />
-                    <Icon
-                      d={ARROW}
-                      className="absolute size-5 scale-50 opacity-0 transition-all duration-300 group-hover:scale-100 group-hover:rotate-12 group-hover:opacity-100"
-                    />
-                  </span>
-                </span>
-                <span className="relative flex flex-col">
-                  <span
-                    className={`font-semibold tracking-tight ${i === 0 ? "text-3xl sm:text-4xl" : "text-lg sm:text-xl"}`}
-                  >
-                    {label}
-                  </span>
-                  <span
-                    className={`text-sm opacity-60 ${id === "post" ? "pr-28" : ""}`}
-                  >
-                    {hint}
-                  </span>
-                </span>
-              </button>
-              {id === "post" && (
                 <button
                   type="button"
-                  onClick={() => setView("feed")}
-                  className="absolute right-4 bottom-4 rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-transform duration-200 active:scale-[0.97] sm:right-5 sm:bottom-5"
+                  onClick={async () => {
+                    // Switching signs this device out, so the next person needs their PIN
+                    await signOut().catch(() => {});
+                    setReturned(true);
+                    setView("menu");
+                    setProfile(null);
+                  }}
+                  className="flex items-center gap-2 rounded-full border border-foreground/20 py-1 pr-3 pl-1 text-xs font-medium"
                 >
-                  Go to feed →
+                  <Avatar
+                    profile={profile}
+                    className="size-6 rounded-full text-xs"
+                  />
+                  Switch
                 </button>
-              )}
+              </div>
             </div>
+            <h1 className="text-6xl leading-[0.95] font-semibold tracking-tighter break-words sm:text-7xl">
+              Hello,
+              <br />
+              <span className="text-7xl">{profile.name}</span> !
+            </h1>
+            <p className="mt-2 text-2xl text-foreground/50 sm:text-xl">
+              What will you do today?
+            </p>
+          </header>
+
+          <div className="grid min-h-96 flex-1 grid-cols-2 grid-rows-[1.6fr_1fr_0.8fr] gap-3">
+            {ACTIONS.map(({ id, icon, label, hint, tile }, i) => (
+              <div
+                key={id}
+                style={{ animationDelay: `${150 + i * 70}ms` }}
+                className={`enter relative ${tile.includes("col-span-2") ? "col-span-2" : ""}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => go(id)}
+                  className={`group relative flex size-full flex-col justify-between overflow-hidden ink-fill rounded-3xl p-4 text-left transition-transform duration-200 active:scale-[0.97] sm:p-5 ${tile}`}
+                >
+                  {/* Texture fades out behind the label so the text stays clean */}
+                  {id !== "post" && (
+                    <span
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background from-35% to-transparent"
+                      aria-hidden
+                    />
+                  )}
+                  <span className="relative flex items-start justify-between">
+                    <span className="text-xs font-medium tabular-nums opacity-50">
+                      0{i + 1}
+                    </span>
+                    <span
+                      className={`relative grid size-11 place-items-center rounded-full border-[1.5px] border-current transition-transform duration-300 group-hover:-rotate-12 ${id === "post" ? "" : "bg-background"}`}
+                    >
+                      <Icon
+                        d={icon}
+                        className="size-5 transition-all duration-300 group-hover:scale-50 group-hover:opacity-0"
+                      />
+                      <Icon
+                        d={ARROW}
+                        className="absolute size-5 scale-50 opacity-0 transition-all duration-300 group-hover:scale-100 group-hover:rotate-12 group-hover:opacity-100"
+                      />
+                    </span>
+                  </span>
+                  <span className="relative flex flex-col">
+                    <span
+                      className={`font-semibold tracking-tight ${i === 0 ? "text-3xl sm:text-4xl" : "text-lg sm:text-xl"}`}
+                    >
+                      {label}
+                    </span>
+                    <span
+                      className={`text-sm opacity-60 ${id === "post" ? "pr-28" : ""}`}
+                    >
+                      {hint}
+                    </span>
+                  </span>
+                </button>
+                {id === "post" && (
+                  <button
+                    type="button"
+                    onClick={() => go("feed")}
+                    className="absolute right-4 bottom-4 rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-transform duration-200 active:scale-[0.97] sm:right-5 sm:bottom-5"
+                  >
+                    Go to feed →
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section
+        style={returned ? { animationDelay: "0s" } : undefined}
+        className="rise m-auto flex w-full flex-col items-center gap-10 text-center sm:gap-14"
+      >
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+          Who&apos;s there?
+        </h1>
+
+        <ul className="flex flex-wrap justify-center gap-8 sm:gap-12">
+          {PROFILES.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => setAsking(p)}
+                className="group flex flex-col items-center gap-3 transition-transform duration-200 active:scale-[0.97]"
+              >
+                <Avatar
+                  profile={p}
+                  className="size-28 rounded-3xl text-5xl ring-foreground ring-offset-4 ring-offset-background transition-all duration-200 group-hover:ring-2 group-focus-visible:ring-2 sm:size-40 sm:text-6xl"
+                />
+                <span className="text-lg text-foreground/60 transition-colors group-hover:text-foreground sm:text-xl">
+                  {p.name}
+                </span>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
     );
   }
 
   return (
-    <section
-      style={returned ? { animationDelay: "0s" } : undefined}
-      className="rise m-auto flex w-full flex-col items-center gap-10 text-center sm:gap-14"
-    >
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-        Who&apos;s there?
-      </h1>
-
-      <ul className="flex flex-wrap justify-center gap-8 sm:gap-12">
-        {PROFILES.map((p) => (
-          <li key={p.id}>
-            <button
-              type="button"
-              onClick={() => setAsking(p)}
-              className="group flex flex-col items-center gap-3 transition-transform duration-200 active:scale-[0.97]"
-            >
-              <Avatar
-                profile={p}
-                className="size-28 rounded-3xl text-5xl ring-foreground ring-offset-4 ring-offset-background transition-all duration-200 group-hover:ring-2 group-focus-visible:ring-2 sm:size-40 sm:text-6xl"
-              />
-              <span className="text-lg text-foreground/60 transition-colors group-hover:text-foreground sm:text-xl">
-                {p.name}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <>
+      {render()}
+      {splash && <ScreenSplash onDone={hideSplash} />}
+    </>
   );
 }

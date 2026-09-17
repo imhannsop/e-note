@@ -49,6 +49,16 @@ body {
   animation: ink-drop 0.5s 1s ease-out forwards;
 }
 
+/* Quicker stroke for screen changes */
+.ink-fast .ink-stroke {
+  animation-duration: 0.45s;
+}
+
+.ink-fast .ink-drop {
+  animation-duration: 0.25s;
+  animation-delay: 0.4s;
+}
+
 @keyframes ink-write {
   to {
     stroke-dashoffset: 0;
