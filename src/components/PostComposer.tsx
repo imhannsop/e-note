@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Avatar, type Profile } from "@/components/profiles";
 import { savePhotos } from "@/components/photos";
+import { savePost } from "@/components/posts";
 import { Icon, useKeyboardInset } from "@/components/ui";
 
 type Media = { id: string; url: string; kind: "image" | "video"; file: File };
 
-// Paper the post is written on, reusing the e-ink tile textures
+// Paper styles for the note surface
 const PAPERS = [
   { id: "plain", label: "Plain", className: "" },
   { id: "dots", label: "Dots", className: "ink-dots" },
@@ -24,10 +25,10 @@ const ICONS = {
   back: "M15 18l-6-6 6-6",
 };
 
-// Drawer: the action cards, or the paper picker
+// Drawer modes for the action panel and paper picker
 type Drawer = "expanded" | "paper";
 
-// Collage frame and tile placement per photo count; 5+ shows a "+N" tile
+// Collage layout rules by photo count; 5+ shows a "+N" tile
 const COLLAGES: Record<number, { frame: string; tiles: string[] }> = {
   1: { frame: "grid-cols-1 aspect-[4/3]", tiles: [""] },
   2: { frame: "grid-cols-2 aspect-[2/1]", tiles: ["", ""] },
@@ -109,7 +110,7 @@ export default function PostComposer({
   const [posted, setPosted] = useState(false);
   const keyboard = useKeyboardInset();
 
-  // Free preview URLs when leaving the composer
+  // Release object URLs when the composer is torn down
   const mediaRef = useRef(media);
   useEffect(() => {
     mediaRef.current = media;
@@ -120,7 +121,7 @@ export default function PostComposer({
   );
 
   const canPost = !posted && (text.trim() !== "" || media.length > 0);
-  // Short posts read big, like Facebook; long ones settle to body size
+  // Keep short notes larger and longer notes easier to read
   const textSize =
     media.length === 0 && text.length < 80
       ? "text-xl"
@@ -153,11 +154,19 @@ export default function PostComposer({
 
   async function post() {
     if (!canPost) return;
-    // TODO: save text-only posts once a feed exists; photos go to the gallery
+    // Save media to the gallery and keep the entry in the feed
     const at = new Date().toISOString();
     await savePhotos(
       media.map((m) => ({ id: m.id, profileId: profile.id, blob: m.file, kind: m.kind, caption: text.trim(), at })),
     ).catch(() => {});
+    savePost({
+      id: crypto.randomUUID(),
+      profileId: profile.id,
+      text: text.trim(),
+      paper: paper.className,
+      mediaIds: media.map((m) => m.id),
+      at,
+    });
     setPosted(true);
     setTimeout(onClose, 900);
   }

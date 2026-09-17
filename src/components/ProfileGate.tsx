@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import DevLog from "@/components/DevLog";
+import Feed from "@/components/Feed";
 import Gallery from "@/components/Gallery";
 import PostComposer from "@/components/PostComposer";
 import WeeklyPlanner from "@/components/WeeklyPlanner";
@@ -10,10 +11,34 @@ import { InkStroke } from "@/components/Splash";
 
 // Main tile layout for the home screen
 const ACTIONS = [
-  { id: "post", icon: "✍️", label: "Write a post", hint: "Share what's on your mind", tile: "col-span-2 ink-solid" },
-  { id: "todo", icon: "✅", label: "Dev log", hint: "Log your day", tile: "ink-dots" },
-  { id: "planner", icon: "🗓️", label: "Weekly Planner", hint: "Plan your week", tile: "ink-lines" },
-  { id: "gallery", icon: "🖼️", label: "View Gallery", hint: "Browse your posts", tile: "col-span-2 ink-grid" },
+  {
+    id: "post",
+    icon: "✍️",
+    label: "Write a post",
+    hint: "Share what's on your mind",
+    tile: "col-span-2 ink-solid",
+  },
+  {
+    id: "todo",
+    icon: "✅",
+    label: "Dev log",
+    hint: "Log your day",
+    tile: "ink-dots",
+  },
+  {
+    id: "planner",
+    icon: "🗓️",
+    label: "Weekly Planner",
+    hint: "Plan your week",
+    tile: "ink-lines",
+  },
+  {
+    id: "gallery",
+    icon: "🖼️",
+    label: "View Gallery",
+    hint: "Browse your posts",
+    tile: "col-span-2 ink-grid",
+  },
 ] as const;
 
 export default function ProfileGate() {
@@ -23,7 +48,9 @@ export default function ProfileGate() {
   // Came back via Switch, so the picker shouldn't wait for the splash
   const [returned, setReturned] = useState(false);
   // Which screen of the profile's space is open
-  const [view, setView] = useState<"menu" | "post" | "todo" | "planner" | "gallery">("menu");
+  const [view, setView] = useState<
+    "menu" | "post" | "feed" | "todo" | "planner" | "gallery"
+  >("menu");
 
   function choose(p: Profile) {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -45,7 +72,10 @@ export default function ProfileGate() {
         aria-label={`Opening ${picking.name}`}
         className="enter m-auto flex flex-col items-center gap-6"
       >
-        <Avatar profile={picking} className="size-24 rounded-3xl text-4xl sm:size-28 sm:text-5xl" />
+        <Avatar
+          profile={picking}
+          className="size-24 rounded-3xl text-4xl sm:size-28 sm:text-5xl"
+        />
         <InkStroke className="w-32 sm:w-40" />
         <span className="text-xs font-medium tracking-[0.3em] text-foreground/50 uppercase">
           Opening {picking.name}&apos;s notebook
@@ -56,6 +86,16 @@ export default function ProfileGate() {
 
   if (profile && view === "post") {
     return <PostComposer profile={profile} onClose={() => setView("menu")} />;
+  }
+
+  if (profile && view === "feed") {
+    return (
+      <Feed
+        profile={profile}
+        onClose={() => setView("menu")}
+        onWrite={() => setView("post")}
+      />
+    );
   }
 
   if (profile && view === "gallery") {
@@ -93,7 +133,10 @@ export default function ProfileGate() {
               }}
               className="flex items-center gap-2 rounded-full border border-foreground/20 py-1 pr-3 pl-1 text-xs font-medium"
             >
-              <Avatar profile={profile} className="size-6 rounded-full text-xs" />
+              <Avatar
+                profile={profile}
+                className="size-6 rounded-full text-xs"
+              />
               Switch
             </button>
           </div>
@@ -109,27 +152,42 @@ export default function ProfileGate() {
 
         <div className="grid min-h-96 flex-1 grid-cols-2 grid-rows-[1.6fr_1fr_0.8fr] gap-3">
           {ACTIONS.map(({ id, icon, label, hint, tile }, i) => (
-            <button
+            <div
               key={id}
-              type="button"
-              onClick={() => setView(id)}
               style={{ animationDelay: `${150 + i * 70}ms` }}
-              className={`enter group relative flex flex-col justify-end overflow-hidden ink-fill rounded-3xl p-5 text-left transition-transform duration-200 active:scale-[0.97] ${tile}`}
+              className={`enter relative ${tile.includes("col-span-2") ? "col-span-2" : ""}`}
             >
-              <span
-                className="absolute -top-3 -right-3 text-8xl opacity-20 grayscale transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 sm:text-9xl"
-                aria-hidden
+              <button
+                type="button"
+                onClick={() => setView(id)}
+                className={`group relative flex size-full flex-col justify-end overflow-hidden ink-fill rounded-3xl p-5 text-left transition-transform duration-200 active:scale-[0.97] ${tile}`}
               >
-                {icon}
-              </span>
-              <span className="absolute top-4 left-5 text-xs font-medium tabular-nums opacity-50">
-                0{i + 1}
-              </span>
-              <span className={`font-semibold tracking-tight ${i === 0 ? "text-3xl sm:text-4xl" : "text-lg sm:text-xl"}`}>
-                {label}
-              </span>
-              <span className="text-sm opacity-60">{hint}</span>
-            </button>
+                <span
+                  className="absolute -top-3 -right-3 text-8xl opacity-20 grayscale transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 sm:text-9xl"
+                  aria-hidden
+                >
+                  {icon}
+                </span>
+                <span className="absolute top-4 left-5 text-xs font-medium tabular-nums opacity-50">
+                  0{i + 1}
+                </span>
+                <span
+                  className={`font-semibold tracking-tight ${i === 0 ? "text-3xl sm:text-4xl" : "text-lg sm:text-xl"}`}
+                >
+                  {label}
+                </span>
+                <span className="text-sm opacity-60">{hint}</span>
+              </button>
+              {id === "post" && (
+                <button
+                  type="button"
+                  onClick={() => setView("feed")}
+                  className="absolute top-3 right-3 rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-transform duration-200 active:scale-[0.97]"
+                >
+                  Go to feed →
+                </button>
+              )}
+            </div>
           ))}
         </div>
       </section>
@@ -141,7 +199,9 @@ export default function ProfileGate() {
       style={returned ? { animationDelay: "0s" } : undefined}
       className="rise m-auto flex w-full flex-col items-center gap-10 text-center sm:gap-14"
     >
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">Who&apos;s there?</h1>
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+        Who&apos;s there?
+      </h1>
 
       <ul className="flex flex-wrap justify-center gap-8 sm:gap-12">
         {PROFILES.map((p) => (

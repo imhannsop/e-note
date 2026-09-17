@@ -40,6 +40,11 @@ export async function listPhotos(profileId: string): Promise<Photo[]> {
   return rows ?? [];
 }
 
+export async function listAllPhotos(): Promise<Photo[]> {
+  const rows = await run<Photo[]>("readonly", (s) => s.getAll());
+  return rows ?? [];
+}
+
 export function savePhotos(photos: Photo[]) {
   return run("readwrite", (s) => {
     photos.forEach((p) => s.put(p));
