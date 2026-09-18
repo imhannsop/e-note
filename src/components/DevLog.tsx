@@ -7,7 +7,20 @@ import { useDoc } from "@/components/useDoc";
 
 type Kind = "task" | "note" | "idea";
 type State = "open" | "done";
-type Entry = { id: string; kind: Kind; text: string; state: State; at: string };
+type Category = "school" | "personal";
+type Entry = {
+  id: string;
+  kind: Kind;
+  cat: Category;
+  text: string;
+  state: State;
+  at: string;
+};
+
+const CATEGORIES: { id: Category; label: string }[] = [
+  { id: "school", label: "School" },
+  { id: "personal", label: "Personal" },
+];
 
 const KINDS: { id: Kind; label: string; mark: string }[] = [
   { id: "task", label: "Task", mark: "●" },
@@ -89,10 +102,13 @@ function localDate(d = new Date()) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
 }
 
+// Older entries predate categories; they land in Personal.
 const upgrade = (entries: Entry[]) =>
-  entries.map((e) =>
-    (e.state as string) === "moved" ? { ...e, state: "done" as const } : e,
-  );
+  entries.map((e) => ({
+    ...e,
+    cat: e.cat ?? "personal",
+    state: (e.state as string) === "moved" ? ("done" as const) : e.state,
+  }));
 
 export default function DevLog({
   profile,
@@ -101,12 +117,14 @@ export default function DevLog({
   profile: Profile;
   onClose: () => void;
 }) {
-  const [entries, setEntries, sync] = useDoc<Entry[]>(
+  const [all, setEntries, sync] = useDoc<Entry[]>(
     "devlog",
     `ink:devlog:${profile.id}`,
     [],
     upgrade,
   );
+  const [cat, setCat] = useState<Category>("school");
+  const entries = all.filter((e) => e.cat === cat);
   const [kind, setKind] = useState<Kind>("task");
   const [draft, setDraft] = useState("");
   const keyboard = useKeyboardInset();
@@ -121,7 +139,7 @@ export default function DevLog({
   useEffect(() => {
     if (!history)
       endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [entries.length, history]);
+  }, [entries.length, history, cat]);
 
   const today = todayKey();
   const days = Object.entries(
@@ -164,7 +182,7 @@ export default function DevLog({
     if (!text) return;
     setEntries((es) => [
       ...es,
-      { id: crypto.randomUUID(), kind, text, state: "open", at: localDate() },
+      { id: crypto.randomUUID(), kind, cat, text, state: "open", at: localDate() },
     ]);
     setDraft("");
   }
@@ -183,7 +201,11 @@ export default function DevLog({
     const now = localDate();
     setEntries((es) => {
       const open = es.filter(
-        (e) => e.kind === "task" && e.state === "open" && dayKey(e.at) === day,
+        (e) =>
+          e.cat === cat &&
+          e.kind === "task" &&
+          e.state === "open" &&
+          dayKey(e.at) === day,
       );
       const ids = new Set(open.map((e) => e.id));
       return [
@@ -373,7 +395,37 @@ export default function DevLog({
         style={{ animationDelay: "60ms" }}
       >
         <Avatar profile={profile} className="size-12 rounded-2xl text-xl" />
-        <span className="font-semibold">{profile.name}&apos;s logs</span>
+        <span className="min-w-0 flex-1 truncate font-semibold">
+          {profile.name}&apos;s logs
+        </span>
+        <div
+          className="flex shrink-0 gap-1 rounded-full border border-foreground/20 p-1"
+          role="radiogroup"
+          aria-label="Category"
+        >
+          {CATEGORIES.map((c) => {
+            const active = cat === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => {
+                  setCat(c.id);
+                  setSelected(null);
+                }}
+                className={`h-8 rounded-full px-3 text-xs transition-all duration-200 active:scale-[0.97] ${
+                  active
+                    ? "ink-solid font-semibold"
+                    : "font-medium text-[var(--gray)] hover:bg-foreground/10"
+                }`}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div
