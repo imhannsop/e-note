@@ -127,7 +127,11 @@ export default function DevLog({
   const entries = all.filter((e) => e.cat === cat);
   const [kind, setKind] = useState<Kind>("task");
   const [draft, setDraft] = useState("");
-  const keyboard = useKeyboardInset();
+  // Scrolling on mobile shows/hides the browser bar, which reads as a
+  // viewport inset; only honor it while typing so the composer stays put.
+  const [typing, setTyping] = useState(false);
+  const inset = useKeyboardInset();
+  const keyboard = typing ? inset : 0;
   const endRef = useRef<HTMLDivElement>(null);
   const [history, setHistory] = useState(false);
   const [month, setMonth] = useState(() => {
@@ -343,7 +347,7 @@ export default function DevLog({
 
   return (
     <section
-      className="devlog fixed inset-x-0 top-0 z-50 flex flex-col"
+      className="devlog fixed inset-x-0 top-0 z-50 flex flex-col overscroll-none"
       style={{
         bottom: keyboard,
         paddingTop: "env(safe-area-inset-top)",
@@ -429,7 +433,7 @@ export default function DevLog({
       </div>
 
       <div
-        className="enter min-h-0 flex-1 overflow-y-auto px-4"
+        className="enter min-h-0 flex-1 overflow-y-auto overscroll-contain px-4"
         style={{ animationDelay: "120ms" }}
       >
         {history ? (
@@ -558,6 +562,12 @@ export default function DevLog({
             e.preventDefault();
             add();
           }}
+          onPointerDown={(e) => {
+            // Keep the input focused so the keyboard (and layout) don't jump
+            // out from under the tap.
+            if (typing && (e.target as HTMLElement).closest("button"))
+              e.preventDefault();
+          }}
           className="enter mx-4 mt-2 flex shrink-0 flex-col gap-2 rounded-2xl border border-foreground/20 p-2"
           style={{
             animationDelay: "180ms",
@@ -591,6 +601,8 @@ export default function DevLog({
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              onFocus={() => setTyping(true)}
+              onBlur={() => setTyping(false)}
               placeholder={
                 kind === "task"
                   ? "Fix the thing…"
