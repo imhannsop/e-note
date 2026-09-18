@@ -5,7 +5,6 @@ import { Avatar, type Profile } from "@/components/profiles";
 import { Icon, useKeyboardInset } from "@/components/ui";
 import { useDoc } from "@/components/useDoc";
 
-// Tasks toggle between open and done; notes and ideas stay as-is.
 type Kind = "task" | "note" | "idea";
 type State = "open" | "done";
 type Entry = { id: string; kind: Kind; text: string; state: State; at: string };
@@ -21,7 +20,6 @@ const NEXT_STATE: Record<State, State> = {
   done: "open",
 };
 
-// Each entry style uses a different left edge and color treatment.
 type Look = {
   key: string;
   label: string;
@@ -77,7 +75,6 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const keyOf = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-// How a calendar day reads at a glance: empty, some work, or every task done
 function dayTone(list: Entry[]) {
   const tasks = list.filter((e) => e.kind === "task");
   if (tasks.length > 0 && tasks.every((e) => e.state !== "open"))
@@ -88,12 +85,10 @@ function dayTone(list: Entry[]) {
 const dayKey = (iso: string) => iso.slice(0, 10);
 const todayKey = () => dayKey(localDate());
 
-// Store the timestamp in local time so each day is split at the user's midnight.
 function localDate(d = new Date()) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
 }
 
-// Older logs used a "moved" state; those tasks were handled, so read them as done
 const upgrade = (entries: Entry[]) =>
   entries.map((e) =>
     (e.state as string) === "moved" ? { ...e, state: "done" as const } : e,
@@ -123,7 +118,6 @@ export default function DevLog({
   });
   const [selected, setSelected] = useState<string | null>(null);
 
-  // Keep the newest entry in view as the list grows.
   useEffect(() => {
     if (!history)
       endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -145,7 +139,6 @@ export default function DevLog({
   const firstDay = days[0][0];
   const byDay = Object.fromEntries(days);
 
-  // Calendar cells for the shown month, padded to whole weeks
   const monthDays = new Date(
     month.getFullYear(),
     month.getMonth() + 1,
@@ -186,7 +179,6 @@ export default function DevLog({
     setEntries((es) => es.filter((e) => e.id !== id));
   }
 
-  // Move any open tasks from an earlier day onto today.
   function carryOver(day: string) {
     const now = localDate();
     setEntries((es) => {
@@ -212,7 +204,7 @@ export default function DevLog({
     ).length;
     return (
       <div key={day} className="flex flex-col pb-4">
-        {/* Date header anchors the day */}
+        {}
         <div
           className={`sticky top-0 z-10 flex items-end justify-between gap-2 bg-[var(--paper)] pb-4 ${i === 0 ? "pt-3" : "pt-8"}`}
         >
@@ -230,7 +222,7 @@ export default function DevLog({
               <span className="text-[var(--gray)]"> {date.getFullYear()}</span>
             </h3>
             <div className="mt-3 flex items-start gap-2">
-              {/* Key to the edge treatments */}
+              {}
               <ul
                 className="flex flex-1 flex-wrap gap-2 text-[10px] font-medium tracking-widest text-[var(--gray)] uppercase"
                 aria-label="Legend"
@@ -337,7 +329,6 @@ export default function DevLog({
         paddingRight: "env(safe-area-inset-right)",
       }}
     >
-      {/* Header */}
       <header className="enter relative mx-4 flex h-12 shrink-0 items-center justify-between border-b border-foreground/15">
         <button
           type="button"
@@ -377,7 +368,6 @@ export default function DevLog({
         </p>
       )}
 
-      {/* Current profile */}
       <div
         className="enter mx-4 flex items-center gap-3 pt-4"
         style={{ animationDelay: "60ms" }}
@@ -386,14 +376,12 @@ export default function DevLog({
         <span className="font-semibold">{profile.name}&apos;s logs</span>
       </div>
 
-      {/* Entry list */}
       <div
         className="enter min-h-0 flex-1 overflow-y-auto px-4"
         style={{ animationDelay: "120ms" }}
       >
         {history ? (
           <div className="flex flex-col gap-4 pt-4">
-            {/* Month calendar */}
             <div className="ink-fill rounded-3xl p-4">
               <div className="flex items-center justify-between gap-2">
                 <button
@@ -471,7 +459,7 @@ export default function DevLog({
                 })}
               </div>
 
-              {/* Key */}
+              {}
               <div className="mt-4 flex items-center gap-2">
                 <ul className="flex flex-1 flex-wrap gap-x-4 gap-y-1 text-[10px] font-medium tracking-widest text-[var(--gray)] uppercase">
                   <li className="flex items-center gap-1.5">
@@ -512,7 +500,6 @@ export default function DevLog({
         <div ref={endRef} className="h-4" />
       </div>
 
-      {/* Write an entry */}
       {!history && (
         <form
           onSubmit={(e) => {

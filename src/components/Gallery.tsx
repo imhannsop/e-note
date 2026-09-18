@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { track } from "@/components/loading";
 import { deletePost, getProfileMeta, saveProfileMeta } from "@/app/actions";
 import {
   commentsFor,
@@ -32,7 +33,6 @@ const fmtDate = (iso: string) =>
     year: "numeric",
   });
 
-// Hashtags in the text plus mood tags from the composer
 const tagsOfPost = (p: Post) => [
   ...new Set([
     ...tagsOf(p.text),
@@ -40,7 +40,6 @@ const tagsOfPost = (p: Post) => [
   ]),
 ];
 
-// Text-only tiles cycle through the home screen's textures
 const TEXTURES = ["ink-dots", "ink-lines", "ink-grid"];
 
 const nameOf = (id: string) => PROFILES.find((p) => p.id === id);
@@ -55,7 +54,6 @@ function MediaThumb({ m, className }: { m: Media; className: string }) {
       className={className}
     />
   ) : (
-    // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
     <img src={m.url} alt="" loading="lazy" className={className} />
   );
 }
@@ -79,7 +77,7 @@ export default function Gallery({
   const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
-    getProfileMeta(profile.id).then(setMeta, () => {});
+    track(getProfileMeta(profile.id)).then(setMeta, () => {});
   }, [profile.id]);
 
   const mediaOf = (p: Post): Media[] => p.media;
@@ -137,7 +135,6 @@ export default function Gallery({
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {/* Top navigation */}
       <header className="enter sticky top-0 z-20 mx-4 flex h-14 shrink-0 items-center justify-between border-b-[1.5px] border-foreground bg-[var(--paper)]">
         <button
           type="button"
@@ -153,7 +150,6 @@ export default function Gallery({
         <span className="size-10" aria-hidden />
       </header>
 
-      {/* Cover: the home screen's greeting, turned into a name plate */}
       <div
         className="enter mx-4 mt-5 flex flex-col gap-4"
         style={{ animationDelay: "60ms" }}
@@ -222,7 +218,7 @@ export default function Gallery({
           />
         </div>
 
-        {/* Stats as little home tiles */}
+        {}
         <div className="grid grid-cols-3 gap-3">
           {(
             [
@@ -251,7 +247,6 @@ export default function Gallery({
         </div>
       </div>
 
-      {/* Sort, tags */}
       <div
         className="enter mx-4 mt-8 flex flex-col gap-3"
         style={{ animationDelay: "120ms" }}
@@ -293,7 +288,6 @@ export default function Gallery({
         )}
       </div>
 
-      {/* The grid: home-style tiles, newest post featured large */}
       <div
         className="enter mt-3 flex-1 px-4"
         style={{ animationDelay: "180ms" }}
@@ -339,7 +333,6 @@ export default function Gallery({
                         className="size-full object-cover grayscale contrast-125 transition-transform duration-500 group-hover:scale-105"
                       />
                     ) : (
-                      // Text-only post: the words are the thumbnail
                       <span
                         className={`absolute inset-x-2 bottom-7 rounded bg-[var(--paper)] px-1 leading-tight font-semibold tracking-tight ${
                           big
@@ -385,7 +378,6 @@ export default function Gallery({
                 </li>
               );
             })}
-            {/* Empty slots keep the grid's shape until there's a full row */}
             {Array.from({ length: Math.max(0, 3 - page.length) }, (_, i) => (
               <li key={`empty-${i}`} aria-hidden>
                 <div className="aspect-square rounded-2xl border-[1.5px] border-dashed border-[var(--gray)]" />
@@ -414,7 +406,6 @@ export default function Gallery({
           </div>
         ) : (
           visible.length > 0 && (
-            // The notebook signs off at the end
             <div className="flex flex-col items-center gap-2 pt-10 pb-4">
               <InkStroke className="w-24 opacity-60" />
               <span className="text-[10px] font-medium tracking-[0.3em] text-[var(--gray)] uppercase">
@@ -426,7 +417,6 @@ export default function Gallery({
         <div className="h-6" />
       </div>
 
-      {/* Post detail: the entry opened like a notebook page */}
       {shown && (
         <div
           className="fade-in fixed inset-0 z-30 flex flex-col bg-[var(--paper)]"
@@ -462,7 +452,6 @@ export default function Gallery({
           </header>
 
           <div className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-7 overflow-y-auto px-4 pt-5 pb-8">
-            {/* Date as the headline */}
             <div className="enter flex items-end justify-between gap-4">
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-medium tracking-[0.3em] text-[var(--gray)] uppercase">
@@ -529,7 +518,6 @@ export default function Gallery({
                         className="w-full rounded-xl"
                       />
                     ) : (
-                      // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
                       <img
                         src={m.url}
                         alt=""
@@ -545,7 +533,6 @@ export default function Gallery({
               </section>
             )}
 
-            {/* Caption */}
             {shown.text && (
               <p
                 className="enter text-base leading-relaxed break-words whitespace-pre-wrap"
@@ -556,7 +543,6 @@ export default function Gallery({
               </p>
             )}
 
-            {/* Likes */}
             <section
               className="enter flex flex-col gap-2"
               style={{ animationDelay: "180ms" }}
@@ -590,7 +576,6 @@ export default function Gallery({
               )}
             </section>
 
-            {/* Comments */}
             <section
               className="enter flex flex-col gap-2"
               style={{ animationDelay: "240ms" }}

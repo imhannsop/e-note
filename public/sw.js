@@ -1,4 +1,3 @@
-// Service worker. Bump VERSION to drop old caches on the next deploy.
 const VERSION = "v1";
 const STATIC_CACHE = `ink-static-${VERSION}`;
 const PAGE_CACHE = `ink-pages-${VERSION}`;
@@ -40,11 +39,9 @@ const isStaticAsset = (url) =>
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  // Server actions are POSTs; Supabase and signed media are cross-origin.
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  // RSC payloads vary by request headers; let Next.js handle them.
   if (request.headers.has("RSC") || url.searchParams.has("_rsc")) return;
 
   if (request.mode === "navigate") {

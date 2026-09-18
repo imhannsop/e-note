@@ -1,7 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
-// Server-only Supabase client.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -17,7 +16,6 @@ export const db = createClient(url, key, {
 
 export const BUCKET = "media";
 
-// Notify listeners that data changed.
 export async function ping() {
   await db
     .channel("ink")

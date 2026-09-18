@@ -2,7 +2,6 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-// Public client for ping and uploads.
 let client: SupabaseClient | null = null;
 
 export function browserDb() {
@@ -16,7 +15,6 @@ export function browserDb() {
   return client;
 }
 
-// Listen for shared-data changes.
 export function subscribeChanges(onChange: () => void) {
   const channel = browserDb()
     .channel("ink")

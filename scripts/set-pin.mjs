@@ -1,9 +1,3 @@
-// Sets (or resets) a profile's 4-digit PIN. Runs locally with your service-role key;
-// only the bcrypt hash is stored.
-//
-//   npm run set-pin -- sop
-//
-// You'll be prompted for the PIN, so it never lands in your shell history.
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import bcrypt from "bcryptjs";
@@ -23,7 +17,6 @@ if (!url || !key) {
   process.exit(1);
 }
 
-// Hide typed digits
 const rl = createInterface({ input: stdin, output: stdout, terminal: true });
 rl._writeToOutput = (s) => rl.output.write(/\d/.test(s) ? "" : s);
 const pin = (await rl.question(`New 4-digit PIN for ${id}: `)).trim();

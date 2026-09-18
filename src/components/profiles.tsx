@@ -3,9 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 
-// Profile images live in public/images; the fallback is used when a file is missing.
 export const PROFILES = [
-  // Crop anchor keeps each face centered inside the square frame.
   { id: "sop", name: "sop", photo: "/images/sop.png", focus: "50% 50%" },
   { id: "ling", name: "ling", photo: "/images/ling.jpg", focus: "50% 50%" },
 ];

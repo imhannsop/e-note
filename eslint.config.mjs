@@ -5,7 +5,6 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Keep generated folders out of linting.
   globalIgnores([
     ".next/**",
     "out/**",

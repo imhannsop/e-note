@@ -25,7 +25,6 @@ export function Icon({
   );
 }
 
-// Height of the on-screen keyboard, so bottom bars can sit on top of it
 export function useKeyboardInset() {
   const [inset, setInset] = useState(0);
   useEffect(() => {
@@ -44,7 +43,6 @@ export function useKeyboardInset() {
   return inset;
 }
 
-// Ruled lines match the textarea's 32px line height
 export const RULED = {
   backgroundImage:
     "repeating-linear-gradient(to bottom, transparent 0 31px, color-mix(in srgb, var(--foreground) 12%, transparent) 31px 32px)",
@@ -52,7 +50,6 @@ export const RULED = {
   backgroundAttachment: "local",
 };
 
-// Numbered section label, echoing the home tiles
 export function Step({
   n,
   label,

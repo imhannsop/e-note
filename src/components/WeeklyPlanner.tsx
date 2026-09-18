@@ -6,8 +6,6 @@ import TrendChart, { type Point } from "@/components/TrendChart";
 import { Icon, useKeyboardInset } from "@/components/ui";
 import { useDoc } from "@/components/useDoc";
 
-// A task lives from its start week; repeating ones carry forward until ended.
-// Ending instead of deleting keeps past weeks intact as an archive.
 type Task = {
   id: string;
   name: string;
@@ -31,18 +29,16 @@ const ICONS = {
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 
-// Local-time date keys, so weeks and days split at the user's midnight
 const pad = (n: number) => String(n).padStart(2, "0");
 const keyOf = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parse = (k: string) => new Date(`${k}T00:00`);
 const addDays = (d: Date, n: number) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-const weekOf = (d: Date) => keyOf(addDays(d, -d.getDay())); // weeks start Sunday
+const weekOf = (d: Date) => keyOf(addDays(d, -d.getDay())); 
 
 const nextWeek = (week: string) => keyOf(addDays(parse(week), 7));
 
-// One-off tasks end after their first week unless extended
 function activeIn(t: Task, week: string) {
   const end = t.until ?? (t.repeat ? undefined : nextWeek(t.from));
   return week >= t.from && (!end || week < end);
@@ -111,10 +107,8 @@ export default function WeeklyPlanner({
     days.some((d) => activeIn(t, weekOf(parse(d)))),
   );
 
-  // Checked cells over possible cells for one week
   function rate(w: string) {
     const ts = data.tasks.filter((t) => activeIn(t, w));
-    // Only days that have happened count toward the rate
     const ds = Array.from({ length: 7 }, (_, i) =>
       keyOf(addDays(parse(w), i)),
     ).filter((d) => d <= today);
@@ -134,7 +128,6 @@ export default function WeeklyPlanner({
   }
   const thisRate = rate(week);
   const lastRate = rate(keyOf(addDays(weekStart, -7)));
-  // Daily points for the trend, ending at today or the end of what's on screen
   const trendEnd = [today, days[days.length - 1]].sort()[0];
   const pointsFrom = (end: string, n: number): Point[] =>
     Array.from({ length: n }, (_, i) => {
@@ -187,7 +180,6 @@ export default function WeeklyPlanner({
   function toggleRepeat(t: Task) {
     setData((d) => ({
       ...d,
-      // Stopping a repeat ends it after this week; past weeks keep it
       tasks: d.tasks.map((x) =>
         x.id === t.id
           ? {
@@ -200,7 +192,6 @@ export default function WeeklyPlanner({
     }));
   }
 
-  // Past weeks keep the task; from this week on it's gone
   function removeTask(t: Task) {
     setMenu(null);
     setData((d) => ({
@@ -217,7 +208,6 @@ export default function WeeklyPlanner({
       ? `${weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })}–${addDays(weekStart, 6).toLocaleDateString(undefined, weekStart.getMonth() === addDays(weekStart, 6).getMonth() ? { day: "numeric" } : { month: "short", day: "numeric" })}`
       : cursor.toLocaleDateString(undefined, { month: "long" });
 
-  // Month view: the tapped day, else today if it's in this month, else the 1st
   const selected =
     picked && monthDays.includes(picked)
       ? picked
@@ -235,7 +225,6 @@ export default function WeeklyPlanner({
         paddingRight: "env(safe-area-inset-right)",
       }}
     >
-      {/* Top navigation */}
       <header className="enter relative mx-4 flex h-12 shrink-0 items-center justify-between border-b border-foreground/15">
         <button
           type="button"
@@ -288,7 +277,6 @@ export default function WeeklyPlanner({
         </p>
       )}
 
-      {/* Week / month header */}
       <div
         className="enter mx-4 flex items-end justify-between gap-2 pt-4 pb-4"
         style={{ animationDelay: "60ms" }}
@@ -319,7 +307,6 @@ export default function WeeklyPlanner({
         </button>
       </div>
 
-      {/* The grid */}
       <div
         className="enter mx-4 min-h-0 flex-1 overflow-y-auto"
         style={{ animationDelay: "120ms" }}
@@ -343,7 +330,6 @@ export default function WeeklyPlanner({
             }}
             aria-label={`${rangeLabel} tracker`}
           >
-            {/* Header row, set off by a heavier rule */}
             <div className="flex items-end bg-[color-mix(in_srgb,var(--ink)_9%,var(--paper))] px-3 pb-2 text-[10px] font-medium tracking-widest text-[var(--gray)] uppercase border-b-2 border-[var(--ink)]">
               Task
             </div>
@@ -414,7 +400,7 @@ export default function WeeklyPlanner({
           </div>
         )}
 
-        {/* Stats */}
+        {}
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1 pt-3 pb-4 text-xs text-[var(--gray)]">
           <span>
             <b className="text-[var(--ink)]">{thisRate.fullTasks}</b>/
@@ -431,7 +417,7 @@ export default function WeeklyPlanner({
           </span>
         </div>
 
-        {/* Trend */}
+        {}
         <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-foreground/20 p-4">
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-semibold">Momentum</h3>
@@ -458,7 +444,6 @@ export default function WeeklyPlanner({
         </section>
       </div>
 
-      {/* Quick add */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -529,7 +514,6 @@ function Row({
 }) {
   return (
     <>
-      {/* Task label: tap or right-click for actions */}
       <button
         type="button"
         onClick={onMenu}
@@ -609,8 +593,6 @@ function Row({
 
 const weekOfKey = (d: string) => weekOf(parse(d));
 
-// Calendar month that fits the screen: each day shows its done/total,
-// and the tapped day's checklist sits underneath
 function MonthView({
   days,
   today,
@@ -695,7 +677,6 @@ function MonthView({
                   <path d={ICONS.check} />
                 </svg>
               ) : ts.length > 0 && !future ? (
-                // Progress bar: filled share of the day's tasks
                 <span className="mb-1 h-1 w-3/4 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--ink)_12%,var(--paper))]">
                   <span
                     className="block h-full bg-[var(--ink)]"
@@ -719,7 +700,6 @@ function MonthView({
         ))}
       </div>
 
-      {/* The picked day's checklist */}
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="text-xl font-semibold tracking-tight">

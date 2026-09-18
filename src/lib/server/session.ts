@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { PROFILE_IDS, type ProfileId } from "@/lib/profiles";
 
 const COOKIE = "ink_session";
-const MAX_AGE = 30 * 24 * 60 * 60; // 30 days
+const MAX_AGE = 30 * 24 * 60 * 60; 
 
 function key() {
   const secret = process.env.SESSION_SECRET;
@@ -34,7 +34,6 @@ export async function deleteSession() {
   (await cookies()).delete(COOKIE);
 }
 
-// Current signed-in profile, or null.
 export async function currentProfile(): Promise<ProfileId | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;

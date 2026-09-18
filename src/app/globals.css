@@ -30,12 +30,10 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
-  /* Safe area */
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-/* Ink splash */
 .ink-stroke {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
@@ -49,7 +47,11 @@ body {
   animation: ink-drop 0.5s 1s ease-out forwards;
 }
 
-/* Quicker stroke for screen changes */
+.ink-progress {
+  stroke-dasharray: 1;
+  transition: stroke-dashoffset 0.35s ease-out;
+}
+
 .ink-fast .ink-stroke {
   animation-duration: 0.45s;
 }
@@ -81,6 +83,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ink-progress {
+    transition: none;
+  }
+
   .ink-stroke,
   .ink-drop {
     animation: none;
@@ -89,7 +95,6 @@ body {
   }
 }
 
-/* Notebook paper */
 .paper {
   background-image: repeating-linear-gradient(
     to bottom,
@@ -98,7 +103,6 @@ body {
   );
 }
 
-/* Entrance */
 .paper,
 .rise {
   animation: paper-in 0.5s 1.6s ease-out both;
@@ -111,7 +115,6 @@ body {
   }
 }
 
-/* Menu in */
 .enter {
   animation: enter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -123,7 +126,6 @@ body {
   }
 }
 
-/* Loading placeholder */
 .skeleton {
   background: color-mix(in srgb, currentColor 8%, transparent);
   animation: skeleton 1.2s ease-in-out infinite;
@@ -149,7 +151,6 @@ body {
   }
 }
 
-/* Ink tiles */
 .ink-fill {
   --ink: color-mix(in srgb, var(--foreground) 14%, transparent);
   border: 1.5px solid var(--foreground);
@@ -176,7 +177,6 @@ body {
   color: var(--background);
 }
 
-/* App themes */
 .devlog,
 .planner,
 .gallery,
@@ -197,7 +197,6 @@ body {
   }
 }
 
-/* Check animation */
 .check-pop {
   animation: check-pop 0.28s cubic-bezier(0.3, 1.4, 0.5, 1) both;
 }
@@ -209,13 +208,39 @@ body {
   }
 }
 
+.heart-burst {
+  translate: -50% -50%;
+  animation: heart-burst 0.8s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+@keyframes heart-burst {
+  0% {
+    opacity: 0;
+    scale: 0.3;
+  }
+  15% {
+    opacity: 0.95;
+    scale: 1.15;
+  }
+  30% {
+    scale: 1;
+  }
+  75% {
+    opacity: 0.95;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 0.8;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .check-pop {
     animation: none;
   }
 }
 
-/* Viewer fade */
 .fade-in {
   animation: fade-in 0.18s ease-out both;
 }
@@ -232,7 +257,6 @@ body {
   }
 }
 
-/* Dropdown */
 .drop-in {
   transform-origin: top right;
   animation: drop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -251,7 +275,6 @@ body {
   }
 }
 
-/* Wrong PIN */
 .pin-shake {
   animation: pin-shake 0.36s ease-in-out;
 }

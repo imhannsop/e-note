@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 
-// Registers /sw.js in production only; a SW fights with dev HMR.
 export default function ServiceWorker() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;

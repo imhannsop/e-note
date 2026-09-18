@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
 
-// Served at /manifest.webmanifest and linked in <head> automatically.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",

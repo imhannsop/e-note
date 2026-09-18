@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { track } from "@/components/loading";
 import { createPortal } from "react-dom";
 import { getNotifSeen, markNotifsSeen } from "@/app/actions";
 import { useFeed, type Feed, type Post } from "@/components/posts";
@@ -31,7 +32,6 @@ const VERB = {
 
 const time = (iso: string) => new Date(iso).getTime();
 
-// Everything the other profiles did that involves this one, newest first
 function buildNotices(me: Profile, feed: Feed): Notice[] {
   const who = (id: string) => PROFILES.find((p) => p.id === id);
   const byId = new Map(feed.posts.map((p) => [p.id, p]));
@@ -81,6 +81,11 @@ const fmtAgo = (iso: string) => {
   });
 };
 
+let knownSeen: number | null = null;
+export function seedNotifSeen(iso: string | null) {
+  knownSeen = iso ? time(iso) : null;
+}
+
 export default function Notifications({
   profile,
   onOpenFeed,
@@ -90,17 +95,16 @@ export default function Notifications({
 }) {
   const { feed } = useFeed();
   const notices = buildNotices(profile, feed);
-  // Read state lives in the database so it follows you across devices
-  const [seen, setSeen] = useState(0);
+  const [seen, setSeen] = useState(() => knownSeen ?? 0);
   const pendingSeen = useRef(0);
   const [open, setOpen] = useState(false);
-  // Where the dropdown sits: just under the bell, pointer aimed at its center
   const [anchor, setAnchor] = useState({ top: 0, caret: 0 });
   const bell = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    getNotifSeen().then(
-      (iso) => setSeen(time(iso)),
+    if (knownSeen !== null) return;
+    track(getNotifSeen()).then(
+      (iso) => setSeen((knownSeen = time(iso))),
       () => {},
     );
   }, [profile.id]);
@@ -120,7 +124,6 @@ export default function Notifications({
     if (open) return close();
     place();
     setOpen(true);
-    // Mark read on open; the list keeps its highlight until closed
     markNotifsSeen().then(
       (iso) => (pendingSeen.current = time(iso)),
       () => {},
@@ -129,7 +132,7 @@ export default function Notifications({
 
   function close() {
     setOpen(false);
-    if (pendingSeen.current) setSeen(pendingSeen.current);
+    if (pendingSeen.current) setSeen((knownSeen = pendingSeen.current));
   }
 
   useEffect(() => {
@@ -163,7 +166,6 @@ export default function Notifications({
         )}
       </button>
 
-      {/* Portaled to <body> so animated (transformed) parents can't trap it under the cards */}
       {open &&
         createPortal(
           <div
@@ -171,7 +173,6 @@ export default function Notifications({
             role="dialog"
             aria-label="Notifications"
           >
-            {/* Invisible click-away layer */}
             <button
               type="button"
               aria-label="Close"
@@ -186,7 +187,7 @@ export default function Notifications({
                 maxHeight: `calc(100dvh - ${anchor.top + 16}px)`,
               }}
             >
-              {/* Pointer up to the bell */}
+              {}
               <span
                 aria-hidden
                 className="absolute -top-[7px] size-3 rotate-45 border-t-[1.5px] border-l-[1.5px] border-foreground bg-background"

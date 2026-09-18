@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { addComment, deleteComment, toggleLike } from "@/app/actions";
 import {
   commentsFor,
@@ -124,8 +124,59 @@ export default function Feed({
   const [openComments, setOpenComments] = useState<string | null>(null);
   const posts = loading ? null : feed.posts;
 
-  // Run an action, then refresh; realtime also refreshes other devices
   const run = (fn: () => Promise<unknown>) => fn().then(reload, reload);
+
+  // Optimistic likes: the heart flips on touch, the server catches up behind it.
+  const [want, setWant] = useState<Record<string, boolean>>({});
+  const wantRef = useRef<Record<string, boolean>>({});
+  const confirmed = useRef<Record<string, boolean>>({});
+  const busy = useRef(new Set<string>());
+  const [bursts, setBursts] = useState<Record<string, number>>({});
+  const lastTap = useRef<{ id: string; at: number } | null>(null);
+
+  const sync = async (id: string, serverLiked: boolean) => {
+    if (busy.current.has(id)) return;
+    busy.current.add(id);
+    let cur = confirmed.current[id] ?? serverLiked;
+    try {
+      while (wantRef.current[id] !== undefined && wantRef.current[id] !== cur) {
+        await toggleLike(id);
+        cur = !cur;
+      }
+    } catch {
+      delete wantRef.current[id];
+    } finally {
+      confirmed.current[id] = cur;
+      busy.current.delete(id);
+      await reload();
+      if (wantRef.current[id] === undefined || wantRef.current[id] === cur) {
+        delete wantRef.current[id];
+        delete confirmed.current[id];
+        setWant({ ...wantRef.current });
+      }
+    }
+  };
+
+  const setLiked = (id: string, next: boolean, serverLiked: boolean) => {
+    wantRef.current[id] = next;
+    setWant({ ...wantRef.current });
+    void sync(id, serverLiked);
+  };
+
+  const onMediaTap = (
+    now: number,
+    id: string,
+    liked: boolean,
+    serverLiked: boolean,
+  ) => {
+    const prev = lastTap.current;
+    if (prev && prev.id === id && now - prev.at < 300) {
+      lastTap.current = null;
+      navigator.vibrate?.(10);
+      setBursts((b) => ({ ...b, [id]: (b[id] ?? 0) + 1 }));
+      if (!liked) setLiked(id, true, serverLiked);
+    } else lastTap.current = { id, at: now };
+  };
 
   return (
     <section
@@ -137,7 +188,6 @@ export default function Feed({
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {/* Top navigation */}
       <header className="enter sticky top-0 z-20 mx-4 flex h-12 shrink-0 items-center justify-between border-b border-foreground/15 bg-[var(--paper)]">
         <button
           type="button"
@@ -198,8 +248,15 @@ export default function Feed({
         ) : (
           posts.map((post, i) => {
             const author = PROFILES.find((p) => p.id === post.profileId);
-            const likes = likesFor(feed, post.id).map((l) => l.profileId);
-            const liked = likes.includes(profile.id);
+            const serverLikes = likesFor(feed, post.id).map((l) => l.profileId);
+            const serverLiked = serverLikes.includes(profile.id);
+            const liked = want[post.id] ?? serverLiked;
+            const likes =
+              liked === serverLiked
+                ? serverLikes
+                : liked
+                  ? [...serverLikes, profile.id]
+                  : serverLikes.filter((id) => id !== profile.id);
             const comments = commentsFor(feed, post.id);
             const items = post.media;
             return (
@@ -251,36 +308,54 @@ export default function Feed({
                 )}
                 {items.length > 0 && (
                   <div
-                    className={`grid gap-1 overflow-hidden rounded-2xl ${items.length > 1 ? "grid-cols-2" : ""}`}
+                    onClick={(e) =>
+                      onMediaTap(e.timeStamp, post.id, liked, serverLiked)
+                    }
+                    className={`relative grid touch-manipulation gap-1 overflow-hidden rounded-2xl select-none ${items.length > 1 ? "grid-cols-2" : ""}`}
                   >
-                    {items.slice(0, 4).map((m, j) =>
-                      m.kind === "video" ? (
-                        <video
-                          key={m.id}
-                          src={m.url}
-                          controls
-                          playsInline
-                          className="aspect-square w-full bg-foreground object-cover"
-                        />
-                      ) : (
-                        // Signed storage URLs rotate, so they skip next/image
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={m.id}
-                          src={m.url}
-                          alt=""
-                          className={`w-full object-cover ${items.length === 3 && j === 0 ? "col-span-2 aspect-[2/1]" : "aspect-square"}`}
-                        />
-                      ),
+                    {bursts[post.id] && (
+                      <svg
+                        key={bursts[post.id]}
+                        viewBox="0 0 24 24"
+                        className="heart-burst pointer-events-none absolute top-1/2 left-1/2 z-10 size-24 text-white drop-shadow-lg"
+                        fill="currentColor"
+                        aria-hidden
+                      >
+                        <path d={ICONS.heart} />
+                      </svg>
                     )}
+                    {items
+                      .slice(0, 4)
+                      .map((m, j) =>
+                        m.kind === "video" ? (
+                          <video
+                            key={m.id}
+                            src={m.url}
+                            controls
+                            playsInline
+                            className="aspect-square w-full bg-foreground object-cover"
+                          />
+                        ) : (
+                          <img
+                            key={m.id}
+                            src={m.url}
+                            alt=""
+                            draggable={false}
+                            className={`w-full object-cover ${items.length === 3 && j === 0 ? "col-span-2 aspect-[2/1]" : "aspect-square"}`}
+                          />
+                        ),
+                      )}
                   </div>
                 )}
                 <footer className="flex items-center gap-1 text-sm">
                   <button
                     type="button"
-                    onClick={() => run(() => toggleLike(post.id))}
+                    onClick={() => {
+                      navigator.vibrate?.(5);
+                      setLiked(post.id, !liked, serverLiked);
+                    }}
                     aria-pressed={liked}
-                    className={`flex h-9 items-center gap-1.5 rounded-full px-3 transition-colors duration-150 active:scale-[0.97] ${
+                    className={`flex h-9 touch-manipulation items-center gap-1.5 rounded-full px-3 transition-[color,transform] duration-100 active:scale-90 ${
                       liked ? "text-[var(--accent)]" : "hover:bg-foreground/5"
                     }`}
                   >

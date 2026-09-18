@@ -3,11 +3,11 @@
 import { useSyncExternalStore } from "react";
 import { createPost, createUploadSlots, getFeed } from "@/app/actions";
 import { browserDb, subscribeChanges } from "@/lib/browser";
+import { track } from "@/components/loading";
 import type { Feed, FeedPost, MediaKind } from "@/lib/types";
 
 export type { Comment, Feed, FeedPost as Post, Like } from "@/lib/types";
 
-// #hashtags in a caption double as tags
 export const tagsOf = (caption: string) =>
   [...new Set(caption.match(/#[\p{L}\p{N}_]+/gu) ?? [])].map((t) =>
     t.toLowerCase(),
@@ -15,37 +15,43 @@ export const tagsOf = (caption: string) =>
 
 const EMPTY: Feed = { posts: [], likes: [], comments: [] };
 
-// Shared feed state: one cached copy for every screen, refetched on realtime pings.
-// Signed media URLs change on every fetch, so known ones are kept to avoid image reloads.
 let cached: Feed | null = null;
 let lastError: string | null = null;
 let inflight: Promise<void> | null = null;
 let again = false;
 let unsubscribe: (() => void) | null = null;
+let seededAt = 0;
 let pingTimer: ReturnType<typeof setTimeout> | undefined;
 const listeners = new Set<() => void>();
 const urls = new Map<string, { url: string; at: number }>();
 const notify = () => listeners.forEach((l) => l());
 
+function remember(next: Feed) {
+  const now = Date.now();
+  for (const p of next.posts)
+    for (const m of p.media) {
+      const known = urls.get(m.id);
+      if (known && now - known.at < 50 * 60_000) m.url = known.url;
+      else urls.set(m.id, { url: m.url, at: now });
+    }
+  cached = next;
+  lastError = null;
+}
+
+export function seedFeed(next: Feed) {
+  remember(next);
+  seededAt = Date.now();
+  notify();
+}
+
 function load(): Promise<void> {
-  // Coalesce overlapping requests; run once more if asked mid-flight
   if (inflight) {
     again = true;
     return inflight;
   }
   inflight = (async () => {
     try {
-      const next = await getFeed();
-      const now = Date.now();
-      for (const p of next.posts)
-        for (const m of p.media) {
-          const known = urls.get(m.id);
-          // Reuse for 50 min; the server signs links for 60
-          if (known && now - known.at < 50 * 60_000) m.url = known.url;
-          else urls.set(m.id, { url: m.url, at: now });
-        }
-      cached = next;
-      lastError = null;
+      remember(await (cached ? getFeed() : track(getFeed())));
     } catch (e) {
       lastError = e instanceof Error ? e.message : "Could not load";
     } finally {
@@ -63,8 +69,7 @@ function load(): Promise<void> {
 function subscribe(listener: () => void) {
   listeners.add(listener);
   if (!unsubscribe) {
-    load();
-    // Bursts of pings (e.g. several likes) collapse into one refetch
+    if (Date.now() - seededAt > 30_000) load();
     unsubscribe = subscribeChanges(() => {
       clearTimeout(pingTimer);
       pingTimer = setTimeout(load, 250);
@@ -98,7 +103,6 @@ export const likesFor = (feed: Feed, postId: string) =>
 export const commentsFor = (feed: Feed, postId: string) =>
   feed.comments.filter((c) => c.postId === postId);
 
-// Uploads files straight to storage, then creates the post
 export async function publishPost(
   text: string,
   tags: string[],

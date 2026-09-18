@@ -4,18 +4,20 @@ import { useCallback, useState } from "react";
 import DevLog from "@/components/DevLog";
 import Feed from "@/components/Feed";
 import Gallery from "@/components/Gallery";
-import { signOut } from "@/app/actions";
+import { getStartup, signOut } from "@/app/actions";
 import Notifications from "@/components/Notifications";
 import PinPad from "@/components/PinPad";
 import PostComposer from "@/components/PostComposer";
 import WeeklyPlanner from "@/components/WeeklyPlanner";
 import { Avatar, PROFILES, type Profile } from "@/components/profiles";
 import { InkStroke, ScreenSplash } from "@/components/Splash";
+import { track } from "@/components/loading";
+import { clearStartup, seedStartup } from "@/components/startup";
 import { Icon } from "@/components/ui";
+import type { Startup } from "@/lib/types";
 
 const ARROW = "M7 17L17 7M9 7h8v8";
 
-// Main tile layout for the home screen
 const ACTIONS = [
   {
     id: "post",
@@ -47,24 +49,28 @@ const ACTIONS = [
   },
 ] as const;
 
-export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
-  // The server already checked the session cookie; start inside that profile
+export default function ProfileGate({
+  signedIn,
+  startup,
+}: {
+  signedIn: string | null;
+  startup: Startup | null;
+}) {
+  useState(() => {
+    if (startup && typeof window !== "undefined") seedStartup(startup);
+  });
   const [profile, setProfile] = useState<Profile | null>(
     () => PROFILES.find((p) => p.id === signedIn) ?? null,
   );
-  // Profile tapped on the picker, waiting for its PIN
   const [asking, setAsking] = useState<Profile | null>(null);
-  // Profile tapped, showing its loading screen
   const [picking, setPicking] = useState<Profile | null>(null);
-  // Came back via Switch, so the picker shouldn't wait for the splash
   const [returned, setReturned] = useState(false);
-  // Which screen of the profile's space is open
   const [view, setView] = useState<
     "menu" | "post" | "feed" | "todo" | "planner" | "gallery"
   >("menu");
-  // Quick splash while a tapped screen opens
   const [splash, setSplash] = useState(false);
   const hideSplash = useCallback(() => setSplash(false), []);
+  const hidePicking = useCallback(() => setPicking(null), []);
 
   function go(next: typeof view) {
     setView(next);
@@ -73,19 +79,13 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
   }
 
   function render() {
-    // Called after the server accepted the PIN and set the session cookie
     function open(p: Profile) {
       setAsking(null);
-      if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        setProfile(p);
-        return;
-      }
-      setPicking(p);
-      // Long enough for the ink stroke to finish writing
-      setTimeout(() => {
-        setProfile(p);
-        setPicking(null);
-      }, 1500);
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!reduced) setPicking(p);
+      track(getStartup())
+        .then(seedStartup, () => {})
+        .finally(() => setProfile(p));
     }
 
     if (asking) {
@@ -95,25 +95,6 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
           onBack={() => setAsking(null)}
           onSuccess={() => open(asking)}
         />
-      );
-    }
-
-    if (picking) {
-      return (
-        <section
-          role="status"
-          aria-label={`Opening ${picking.name}`}
-          className="enter m-auto flex flex-col items-center gap-6"
-        >
-          <Avatar
-            profile={picking}
-            className="size-24 rounded-3xl text-4xl sm:size-28 sm:text-5xl"
-          />
-          <InkStroke className="w-32 sm:w-40" />
-          <span className="text-xs font-medium tracking-[0.3em] text-foreground/50 uppercase">
-            Opening {picking.name}&apos;s notebook
-          </span>
-        </section>
       );
     }
 
@@ -167,8 +148,8 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
                 <button
                   type="button"
                   onClick={async () => {
-                    // Switching signs this device out, so the next person needs their PIN
                     await signOut().catch(() => {});
+                    clearStartup();
                     setReturned(true);
                     setView("menu");
                     setProfile(null);
@@ -205,7 +186,7 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
                   onClick={() => go(id)}
                   className={`group relative flex size-full flex-col justify-between overflow-hidden ink-fill rounded-3xl p-4 text-left transition-transform duration-200 active:scale-[0.97] sm:p-5 ${tile}`}
                 >
-                  {/* Texture fades out behind the label so the text stays clean */}
+                  {}
                   {id !== "post" && (
                     <span
                       className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background from-35% to-transparent"
@@ -286,7 +267,6 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
                 aria-label={`Open ${p.name}'s notebook`}
                 className={`group ink-fill relative flex aspect-[3/4] w-full flex-col justify-between overflow-hidden rounded-3xl p-4 text-left transition-transform duration-300 active:scale-[0.97] sm:p-5 ${i % 2 ? "ink-dots hover:rotate-1" : "ink-lines hover:-rotate-1"}`}
               >
-                {/* Spine */}
                 <span
                   className="pointer-events-none absolute inset-y-0 left-0 w-2.5 border-r-[1.5px] border-foreground bg-foreground/10"
                   aria-hidden
@@ -312,7 +292,6 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
                   </span>
                 </span>
 
-                {/* Photo taped to the cover */}
                 <span
                   className={`relative mx-auto transition-transform duration-300 group-hover:rotate-0 ${i % 2 ? "rotate-3" : "-rotate-3"}`}
                 >
@@ -348,6 +327,17 @@ export default function ProfileGate({ signedIn }: { signedIn: string | null }) {
     <>
       {render()}
       {splash && <ScreenSplash onDone={hideSplash} />}
+      {picking && (
+        <ScreenSplash onDone={hidePicking}>
+          <Avatar
+            profile={picking}
+            className="enter size-24 rounded-3xl text-4xl sm:size-28 sm:text-5xl"
+          />
+          <span className="order-last text-xs font-medium tracking-[0.3em] text-foreground/50 uppercase">
+            Opening {picking.name}&apos;s notebook
+          </span>
+        </ScreenSplash>
+      )}
     </>
   );
 }

@@ -1,4 +1,3 @@
-// Shapes passed between server actions and client components
 export type MediaKind = "image" | "video";
 
 export type FeedMedia = { id: string; kind: MediaKind; url: string };
@@ -23,6 +22,12 @@ export type Comment = {
 };
 
 export type Feed = { posts: FeedPost[]; likes: Like[]; comments: Comment[] };
+
+export type Startup = {
+  feed: Feed;
+  notifSeen: string;
+  docs: { devlog: unknown; planner: unknown };
+};
 
 export type ProfileMeta = { name: string; bio: string };
 

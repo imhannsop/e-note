@@ -6,7 +6,6 @@ import { Avatar, type Profile } from "@/components/profiles";
 import { Icon } from "@/components/ui";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
-// Phone-style letters under the digits
 const LETTERS: Record<string, string> = {
   "2": "abc",
   "3": "def",
@@ -25,7 +24,6 @@ const ICONS = {
   del: "M9 5h11v14H9l-6-7zM12 9l5 6M17 9l-5 6",
 };
 
-// 4-digit PIN entry. The check happens on the server; this only collects digits.
 export default function PinPad({
   profile,
   onBack,
@@ -39,7 +37,6 @@ export default function PinPad({
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [shake, setShake] = useState(0);
-  // "enter" for a known PIN; "create" then "confirm" the first time
   const [mode, setMode] = useState<"loading" | "enter" | "create" | "confirm">(
     "loading",
   );
@@ -81,7 +78,6 @@ export default function PinPad({
     ).catch(() => ({ ok: false as const, error: "Couldn't reach the server" }));
     setChecking(false);
     if (res.ok) return onSuccess();
-    // A rejected new PIN (too simple, or already claimed) restarts setup
     if (mode === "confirm") {
       setFirst("");
       const status = await pinStatus(profile.id).catch(() => ({
@@ -102,7 +98,6 @@ export default function PinPad({
     if (next.length === 4) submit(next);
   }
 
-  // Physical keyboards work too
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (/^\d$/.test(e.key)) press(e.key);
@@ -126,7 +121,6 @@ export default function PinPad({
 
   return (
     <section className="enter mx-auto flex w-full max-w-sm flex-1 flex-col gap-8">
-      {/* Top bar */}
       <div className="flex items-center justify-between">
         <button
           type="button"
@@ -155,7 +149,6 @@ export default function PinPad({
         )}
       </div>
 
-      {/* Greeting, in the home screen's voice */}
       <header className="flex items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
           <span className="text-xs font-medium tracking-[0.3em] text-foreground/40 uppercase">
@@ -176,7 +169,6 @@ export default function PinPad({
         />
       </header>
 
-      {/* PIN boxes */}
       <div className="flex flex-col gap-3">
         <div
           key={shake}
@@ -225,7 +217,6 @@ export default function PinPad({
         </p>
       </div>
 
-      {/* Keypad */}
       <div className="mt-auto grid grid-cols-3 gap-2.5 pb-2">
         {KEYS.map((k) =>
           k === "" ? (

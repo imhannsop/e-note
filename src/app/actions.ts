@@ -13,20 +13,17 @@ import type {
   FeedMedia,
   MediaKind,
   ProfileMeta,
+  Startup,
   UploadSlot,
 } from "@/lib/types";
 
-// Server actions only.
-
 const MAX_TRIES = 5;
 const LOCK_MINUTES = 15;
-const URL_TTL = 60 * 60; // signed media links last an hour
+const URL_TTL = 60 * 60; 
 
 function fail(message: string): never {
   throw new Error(message);
 }
-
-// Auth
 
 export type SignInResult = { ok: true } | { ok: false; error: string };
 
@@ -81,7 +78,6 @@ export async function signIn(
   return { ok: true };
 }
 
-// PIN status.
 export async function pinStatus(
   profileId: string,
 ): Promise<{ hasPin: boolean }> {
@@ -94,7 +90,6 @@ export async function pinStatus(
   return { hasPin: Boolean(data?.pin_hash) };
 }
 
-// First-time PIN setup.
 export async function createPin(
   profileId: string,
   pin: string,
@@ -109,7 +104,6 @@ export async function createPin(
     return { ok: false, error: "Too easy to guess. Pick another." };
   }
 
-  // Guard against race conditions.
   const { data, error } = await db
     .from("profiles")
     .update({
@@ -132,8 +126,6 @@ export async function signOut() {
   await deleteSession();
 }
 
-// Profiles
-
 export async function getProfileMeta(profileId: string): Promise<ProfileMeta> {
   await requireProfile();
   const { data } = await db
@@ -150,8 +142,6 @@ export async function saveProfileMeta(meta: ProfileMeta) {
   const bio = String(meta.bio).slice(0, 80);
   await db.from("profiles").update({ display_name: name, bio }).eq("id", me);
 }
-
-// Feed
 
 export async function getFeed(): Promise<Feed> {
   await requireProfile();
@@ -218,7 +208,6 @@ export async function getFeed(): Promise<Feed> {
   };
 }
 
-// Media upload slots.
 export async function createUploadSlots(
   files: { kind: MediaKind; ext: string }[],
 ): Promise<UploadSlot[]> {
@@ -254,7 +243,6 @@ export async function createPost(input: {
     .map(String)
     .slice(0, 10);
   const media = Array.isArray(input.media) ? input.media.slice(0, 20) : [];
-  // Only allow files from this profile.
   if (
     media.some(
       (m) =>
@@ -340,8 +328,6 @@ export async function deleteComment(commentId: string) {
   await ping();
 }
 
-// ---------- Notifications ----------
-
 export async function getNotifSeen(): Promise<string> {
   const me = await requireProfile();
   const { data } = await db
@@ -359,7 +345,15 @@ export async function markNotifsSeen(): Promise<string> {
   return now;
 }
 
-// ---------- Private documents (dev log, planner) ----------
+export async function getStartup(): Promise<Startup> {
+  const [feed, notifSeen, devlog, planner] = await Promise.all([
+    getFeed(),
+    getNotifSeen(),
+    getDoc("devlog"),
+    getDoc("planner"),
+  ]);
+  return { feed, notifSeen, docs: { devlog, planner } };
+}
 
 type DocKind = "devlog" | "planner";
 
