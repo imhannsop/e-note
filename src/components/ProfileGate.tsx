@@ -246,15 +246,14 @@ export default function ProfileGate({
       >
         <header className="flex flex-col gap-1">
           <span className="text-xs font-medium tracking-[0.3em] text-foreground/40 uppercase">
-            ink · a notebook for two
+            ink · your own space
           </span>
           <h1 className="text-5xl leading-[0.95] font-semibold tracking-tighter sm:text-6xl">
             Who are yew?
           </h1>
-          <InkStroke className="mt-1 w-28 sm:w-32" />
         </header>
 
-        <ul className="grid grid-cols-2 gap-3 sm:gap-4">
+        <ul className="grid w-full max-w-md grid-cols-2 gap-3 sm:gap-4">
           {PROFILES.map((p, i) => (
             <li
               key={p.id}
@@ -265,18 +264,14 @@ export default function ProfileGate({
                 type="button"
                 onClick={() => setAsking(p)}
                 aria-label={`Open ${p.name}'s notebook`}
-                className={`group ink-fill relative flex aspect-[3/4] w-full flex-col justify-between overflow-hidden rounded-3xl p-4 text-left transition-transform duration-300 active:scale-[0.97] sm:p-5 ${i % 2 ? "ink-dots hover:rotate-1" : "ink-lines hover:-rotate-1"}`}
+                className={`group ink-fill relative flex w-full flex-col justify-between gap-4 sm:aspect-[3/4] overflow-hidden rounded-3xl p-4 text-left transition-transform duration-300 active:scale-[0.97] sm:p-5 ${i % 2 ? "ink-dots hover:rotate-1" : "ink-lines hover:-rotate-1"}`}
               >
-                <span
-                  className="pointer-events-none absolute inset-y-0 left-0 w-2.5 border-r-[1.5px] border-foreground bg-foreground/10"
-                  aria-hidden
-                />
                 <span
                   className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background from-30% to-transparent"
                   aria-hidden
                 />
 
-                <span className="relative flex items-start justify-between pl-2">
+                <span className="relative flex items-start justify-between">
                   <span className="text-xs font-medium tabular-nums opacity-50">
                     0{i + 1}
                   </span>
@@ -293,12 +288,12 @@ export default function ProfileGate({
                 </span>
 
                 <span
-                  className={`relative mx-auto transition-transform duration-300 group-hover:rotate-0 ${i % 2 ? "rotate-3" : "-rotate-3"}`}
+                  className={`relative mx-auto w-[62%] transition-transform duration-300 group-hover:rotate-0 ${i % 2 ? "rotate-3" : "-rotate-3"}`}
                 >
-                  <span className="block rounded-xl border-[1.5px] border-foreground bg-background p-1.5 pb-4">
+                  <span className="block rounded-xl border-[1.5px] border-foreground bg-background p-1.5 pb-5 shadow-[2px_2px_0_var(--foreground)]">
                     <Avatar
                       profile={p}
-                      className="size-20 rounded-lg text-3xl sm:size-28 sm:text-5xl"
+                      className="aspect-square w-full rounded-lg text-4xl sm:text-6xl"
                     />
                   </span>
                   <span
@@ -307,7 +302,7 @@ export default function ProfileGate({
                   />
                 </span>
 
-                <span className="relative flex flex-col pl-2">
+                <span className="relative flex flex-col">
                   <span className="text-2xl font-semibold tracking-tight sm:text-3xl">
                     {p.name}
                   </span>
@@ -319,6 +314,8 @@ export default function ProfileGate({
             </li>
           ))}
         </ul>
+
+        <InkStroke className="w-28 sm:w-32" />
       </section>
     );
   }
