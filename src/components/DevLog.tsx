@@ -7,7 +7,7 @@ import { useDoc } from "@/components/useDoc";
 
 type Kind = "task" | "note" | "idea";
 type State = "open" | "done";
-type Category = "school" | "personal";
+type Category = "school" | "personal" | "orgs";
 type Entry = {
   id: string;
   kind: Kind;
@@ -20,6 +20,7 @@ type Entry = {
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: "school", label: "School" },
   { id: "personal", label: "Personal" },
+  { id: "orgs", label: "Orgs" },
 ];
 
 const KINDS: { id: Kind; label: string; mark: string }[] = [
@@ -419,7 +420,7 @@ export default function DevLog({
                   setCat(c.id);
                   setSelected(null);
                 }}
-                className={`h-8 rounded-full px-3 text-xs transition-all duration-200 active:scale-[0.97] ${
+                className={`h-8 rounded-full px-2.5 text-xs transition-all duration-200 active:scale-[0.97] ${
                   active
                     ? "ink-solid font-semibold"
                     : "font-medium text-[var(--gray)] hover:bg-foreground/10"
