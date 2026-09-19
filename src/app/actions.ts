@@ -346,20 +346,22 @@ export async function markNotifsSeen(): Promise<string> {
 }
 
 export async function getStartup(): Promise<Startup> {
-  const [feed, notifSeen, devlog, planner] = await Promise.all([
+  const [feed, notifSeen, devlog, planner, budget] = await Promise.all([
     getFeed(),
     getNotifSeen(),
     getDoc("devlog"),
     getDoc("planner"),
+    getDoc("budget"),
   ]);
-  return { feed, notifSeen, docs: { devlog, planner } };
+  return { feed, notifSeen, docs: { devlog, planner, budget } };
 }
 
-type DocKind = "devlog" | "planner";
+type DocKind = "devlog" | "planner" | "budget";
+const DOC_KINDS: DocKind[] = ["devlog", "planner", "budget"];
 
 export async function getDoc<T>(kind: DocKind): Promise<T | null> {
   const me = await requireProfile();
-  if (kind !== "devlog" && kind !== "planner") fail("Bad document");
+  if (!DOC_KINDS.includes(kind)) fail("Bad document");
   const { data } = await db
     .from("documents")
     .select("data")
@@ -371,7 +373,7 @@ export async function getDoc<T>(kind: DocKind): Promise<T | null> {
 
 export async function saveDoc(kind: DocKind, data: unknown) {
   const me = await requireProfile();
-  if (kind !== "devlog" && kind !== "planner") fail("Bad document");
+  if (!DOC_KINDS.includes(kind)) fail("Bad document");
   const json = JSON.stringify(data);
   if (json.length > 1_000_000) fail("Document too large");
   const { error } = await db.from("documents").upsert({

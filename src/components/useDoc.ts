@@ -11,7 +11,7 @@ import { clear, createStore, get, set } from "idb-keyval";
 import { getDoc, saveDoc } from "@/app/actions";
 import { track } from "@/components/loading";
 
-type Kind = "devlog" | "planner";
+type Kind = "devlog" | "planner" | "budget";
 
 // dirty = edited locally but not yet confirmed saved on the server
 type Cached = { value: unknown; dirty: boolean };

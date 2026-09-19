@@ -179,6 +179,7 @@ body {
 
 .devlog,
 .planner,
+.budget,
 .gallery,
 .composer {
   --ink: var(--foreground);
@@ -191,6 +192,7 @@ body {
 @media (prefers-color-scheme: dark) {
   .devlog,
   .planner,
+  .budget,
   .gallery,
   .composer {
     --accent: #f06a55;

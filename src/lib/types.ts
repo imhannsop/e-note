@@ -26,7 +26,7 @@ export type Feed = { posts: FeedPost[]; likes: Like[]; comments: Comment[] };
 export type Startup = {
   feed: Feed;
   notifSeen: string;
-  docs: { devlog: unknown; planner: unknown };
+  docs: { devlog: unknown; planner: unknown; budget: unknown };
 };
 
 export type ProfileMeta = { name: string; bio: string };

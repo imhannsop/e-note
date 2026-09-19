@@ -10,6 +10,7 @@ export function seedStartup(data: Startup) {
   seedNotifSeen(data.notifSeen);
   seedDoc("devlog", data.docs.devlog);
   seedDoc("planner", data.docs.planner);
+  seedDoc("budget", data.docs.budget);
 }
 
 export function clearStartup() {

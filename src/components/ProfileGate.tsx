@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Budget from "@/components/Budget";
 import DevLog from "@/components/DevLog";
 import Feed from "@/components/Feed";
 import Gallery from "@/components/Gallery";
@@ -41,11 +42,18 @@ const ACTIONS = [
     tile: "ink-lines",
   },
   {
+    id: "budget",
+    icon: "M3 7h18v12H3zM3 11h18M16 15h2M6 7l3-3h6l3 3",
+    label: "Budget",
+    hint: "Track daily spending",
+    tile: "ink-dots",
+  },
+  {
     id: "gallery",
     icon: "M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0",
     label: "View Profile",
-    hint: "Your posts, likes & comments",
-    tile: "col-span-2 ink-grid",
+    hint: "Your posts & likes",
+    tile: "ink-grid",
   },
 ] as const;
 
@@ -66,7 +74,7 @@ export default function ProfileGate({
   const [picking, setPicking] = useState<Profile | null>(null);
   const [returned, setReturned] = useState(false);
   const [view, setView] = useState<
-    "menu" | "post" | "feed" | "todo" | "planner" | "gallery"
+    "menu" | "post" | "feed" | "todo" | "planner" | "budget" | "gallery"
   >("menu");
   const [splash, setSplash] = useState(false);
   const hideSplash = useCallback(() => setSplash(false), []);
@@ -120,6 +128,10 @@ export default function ProfileGate({
       return (
         <WeeklyPlanner profile={profile} onClose={() => setView("menu")} />
       );
+    }
+
+    if (profile && view === "budget") {
+      return <Budget onClose={() => setView("menu")} />;
     }
 
     if (profile && view === "todo") {
